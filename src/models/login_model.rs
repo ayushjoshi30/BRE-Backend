@@ -18,6 +18,8 @@ pub struct LoginRequest {
     pub email: String,
     pub pw: String,
 }
+#[derive(Deserialize)]
+
 
 #[derive(Serialize)]
 pub struct LoginResponse {

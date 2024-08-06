@@ -1,8 +1,12 @@
 use sea_orm_migration::{prelude::*, schema::*};
 
-#[derive(DeriveMigrationName)]
-pub struct Migration;
 
+pub struct Migration;
+impl MigrationName for Migration {
+    fn name(&self) -> &str {
+        "m20220101_000001_create_users_table"
+    }
+}
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -10,12 +14,11 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Tenants::Table)
+                    .table(Users::Table)
                     .if_not_exists()
-                    .col(pk_auto(Tenants::Id))
-                    .col(string(Tenants::Identifier).unique_key())
-                    .col(string(Tenants::WorkspaceId))
-                    .col(string(Tenants::BaseUrl))
+                    .col(pk_auto(Users::Id))
+                    .col(string(Users::Name))
+                    .col(string(Users::Role))
                     .to_owned(),
             )
             .await
@@ -24,16 +27,15 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Replace the sample below with your own migration scripts
         manager
-            .drop_table(Table::drop().table(Tenants::Table).to_owned())
+            .drop_table(Table::drop().table(Users::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum Tenants {
+enum Users {
     Table,
     Id,
-    Identifier,
-    WorkspaceId,
-    BaseUrl,
+    Name,
+    Role,
 }

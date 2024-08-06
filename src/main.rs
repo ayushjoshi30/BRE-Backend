@@ -11,6 +11,9 @@ mod controllers {
 mod routes;
 // mod util;
 mod connection;
+mod datafeeding{
+    pub mod data_entry;
+}
 use std::sync::Arc;
 
 use connection::init_db;
@@ -18,6 +21,7 @@ use controllers::login_handler::*;
 use sea_orm::DatabaseConnection;
 use warp::Filter;
 use tokio::{signal, sync::{Mutex, OnceCell}};
+
 
 
 #[tokio::main]

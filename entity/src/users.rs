@@ -2,16 +2,14 @@
 use serde::{Deserialize,Serialize};
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel,  Eq, Serialize,Deserialize)]
-#[sea_orm(table_name = "tenants")]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq,Serialize,Deserialize)]
+#[sea_orm(table_name = "users")]
 pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
-    #[sea_orm(unique)]
-    pub identifier: String,
-    pub workspace_id: String,
-    pub base_url: String,
+    pub name: String,
+    pub role: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

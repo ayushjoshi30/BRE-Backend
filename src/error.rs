@@ -16,7 +16,11 @@ pub enum Error {
     #[error("invalid auth header")]
     InvalidAuthHeaderError,
     #[error("no permission")]
-    NoPermissionError
+    NoPermissionError,
+    #[error("invalid request body")]
+    InvalidRequestBodyError,
+    #[error("database error")]
+    DatabaseErrorr,
 }
 
 #[derive(Serialize, Debug)]
