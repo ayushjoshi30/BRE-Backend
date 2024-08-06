@@ -76,7 +76,7 @@ pub async fn admin_handler(authenticated:bool, db_pool: Arc<DatabaseConnection>)
     Ok(warp::reply::json(&response_obj))
 }
 pub async fn set_tenant(
-    authenticated: bool,
+    _: bool,
     body: tenants::Model,
     db_pool: Arc<DatabaseConnection>,
 ) -> WebResult<impl Reply> {
@@ -89,7 +89,7 @@ pub async fn set_tenant(
     Ok(warp::reply::json(&response_obj))
 }
 
-pub async fn view_tenants(authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn view_tenants(_:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match TenantEntity::find().all(&*db_pool).await {
         Ok(tenants) => Ok(warp::reply::json(&tenants)),
         Err(e) => {

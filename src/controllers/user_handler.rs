@@ -29,17 +29,16 @@ pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool
         reject::custom(WrongCredentialsError)
     })?;
 
-
     Ok(warp::reply::json(&user))
 }
 
 
-pub async fn read_user_handler(id: u32, authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await {
-        // If the user is found, return the user
-        // Else return a 404 error
-        Ok(user) => Ok(warp::reply::json(&user)),
+        // If the user is empty, return a 404
+        Ok(Some(user)) => Ok(warp::reply::json(&user)),
+        Ok(None) => Err(reject::custom(ResourceNotFound)),
 
-        Err(_) => Err(reject::custom(ResourceNotFound)),
+        Err(_) => Err(reject::custom(DatabaseErrorr)),
     }
 }
