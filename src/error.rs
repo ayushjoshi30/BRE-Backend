@@ -21,6 +21,8 @@ pub enum Error {
     InvalidRequestBodyError,
     #[error("database error")]
     DatabaseErrorr,
+    #[error("Resource not found")]
+    ResourceNotFound
 }
 
 #[derive(Serialize, Debug)]
@@ -39,6 +41,7 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
             Error::WrongCredentialsError => (StatusCode::FORBIDDEN, e.to_string()),
             Error::NoPermissionError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::JWTTokenError => (StatusCode::UNAUTHORIZED, e.to_string()),
+            Error::ResourceNotFound => (StatusCode::NOT_FOUND, e.to_string()),
             Error::JWTTokenCreationError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),

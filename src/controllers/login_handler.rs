@@ -1,19 +1,18 @@
-use std::sync::Arc;
-use crate::models::login_model::{LoginRequest, LoginResponse, Users};
 use crate::auth::auth::*;
 use crate::error;
-use crate::error::Error::WrongCredentialsError ;
-use sea_orm::{Set, DatabaseConnection, ActiveModelTrait,EntityTrait};
-use warp::{Rejection, Reply, reject, reply};
-use serde_json::json;
-use entity::{tenants,users};
-use crate::datafeeding::data_entry::*;
+use crate::error::Error::WrongCredentialsError;
+use crate::models::login_model::{LoginRequest, LoginResponse, Users};
+use entity::{tenants, users};
 use sea_orm::prelude::*;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
+use serde_json::json;
+use std::sync::Arc;
+use warp::{reject, reply, Rejection, Reply};
 pub type WebResult<T> = std::result::Result<T, Rejection>;
 pub type Result<T> = std::result::Result<T, error::Error>;
-use entity::users::Entity as UserEntity;
 use entity::tenants::Entity as TenantEntity;
 use entity::users::Column as UserColumn;
+use entity::users::Entity as UserEntity;
 
 pub async fn login_handler(users: Users, body: LoginRequest) -> WebResult<impl Reply> {
     match users
@@ -21,32 +20,29 @@ pub async fn login_handler(users: Users, body: LoginRequest) -> WebResult<impl R
         .find(|(_uid, user)| user.email == body.email && user.pw == body.pw)
     {
         Some((uid, user)) => {
-            let token = create_jwt(&uid, &Role::from_str(&user.role))
-                .map_err(|e| reject::custom(e))?;
+            let token =
+                create_jwt(&uid, &Role::from_str(&user.role)).map_err(|e| reject::custom(e))?;
             Ok(reply::json(&LoginResponse { token }))
         }
         None => Err(reject::custom(WrongCredentialsError)),
     }
 }
 
-pub async fn user_handler(uid: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn user_handler(authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     // Determine the role based on the uid
-    
 
     // Call the user data entry function
     let admin_users = UserEntity::find()
-        .filter(UserColumn::Role.eq("User"))  // Use the correct column variant
+        .filter(UserColumn::Role.eq("User")) // Use the correct column variant
         .all(&*db_pool)
         .await
         .map_err(|e| {
-        eprintln!("Error retrieving  users: {:?}", e);
-        warp::reject::custom(error::Error::DatabaseErrorr)
-    })?;
+            eprintln!("Error retrieving  users: {:?}", e);
+            warp::reject::custom(error::Error::DatabaseErrorr)
+        })?;
 
     // Extract the names of the admin users
-    let names: Vec<String> = admin_users.into_iter()
-        .map(|user| user.name)
-        .collect();
+    let names: Vec<String> = admin_users.into_iter().map(|user| user.username).collect();
 
     // Create the response object
     let response_obj = json!({
@@ -57,23 +53,19 @@ pub async fn user_handler(uid: String, db_pool: Arc<DatabaseConnection>) -> WebR
     Ok(warp::reply::json(&response_obj))
 }
 
-
-pub async fn admin_handler(uid: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    
+pub async fn admin_handler(authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     // Return combined responses as a JSON object
     let admin_users = UserEntity::find()
-        .filter(UserColumn::Role.eq("Admin"))  // Use the correct column variant
+        .filter(UserColumn::Role.eq("Admin")) // Use the correct column variant
         .all(&*db_pool)
         .await
         .map_err(|e| {
-        eprintln!("Error retrieving admin users: {:?}", e);
-        warp::reject::custom(error::Error::DatabaseErrorr)
-    })?;
+            eprintln!("Error retrieving admin users: {:?}", e);
+            warp::reject::custom(error::Error::DatabaseErrorr)
+        })?;
 
     // Extract the names of the admin users
-    let names: Vec<String> = admin_users.into_iter()
-        .map(|user| user.name)
-        .collect();
+    let names: Vec<String> = admin_users.into_iter().map(|user| user.username).collect();
 
     // Create the response object
     let response_obj = json!({
@@ -83,38 +75,21 @@ pub async fn admin_handler(uid: String, db_pool: Arc<DatabaseConnection>) -> Web
 
     Ok(warp::reply::json(&response_obj))
 }
-pub async fn set_tenant(uid:String,body: tenants::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    let tenant_response = tenant_data_entry(
-        body.identifier,
-        body.base_url,
-        body.workspace_id,
-        db_pool,
-    ).await?;
-    let identifier = tenant_response.get("identifier")
-        .and_then(|r| r.as_str())
-        .unwrap_or("Unknown");
+pub async fn set_tenant(
+    authenticated: bool,
+    body: tenants::Model,
+    db_pool: Arc<DatabaseConnection>,
+) -> WebResult<impl Reply> {
+    // Dummy response object
     let response_obj = json!({
-        "message": format!("Tenant added: {}!", identifier),
-        "tenant": tenant_response,
-        
-    });
-
-    Ok(warp::reply::json(&response_obj))
-}
-pub async fn new_user(uid: String,body: users::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
-    let users_response = user_data_entry(uid.clone(), body.name, db_pool.clone()).await?;
-    let role = users_response.get("role")
-        .and_then(|r| r.as_str())
-        .unwrap_or("Unknown");
-    let response_obj = json!({
-        "message": format!("Hello {}!",role),
-        "user": users_response,
+        "message": "Tenant created successfully!",
+        "tenant": body
     });
 
     Ok(warp::reply::json(&response_obj))
 }
 
-pub async fn view_tenants(uid:String,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn view_tenants(authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match TenantEntity::find().all(&*db_pool).await {
         Ok(tenants) => Ok(warp::reply::json(&tenants)),
         Err(e) => {

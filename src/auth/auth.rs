@@ -43,7 +43,7 @@ struct Claims {
     exp: usize,
 }
 
-pub fn with_auth(role: Role) -> impl Filter<Extract = (String,), Error = Rejection> + Clone {
+pub fn with_auth(role: Role) -> impl Filter<Extract = (bool,), Error = Rejection> + Clone {
     headers_cloned()
         .map(move |headers: HeaderMap<HeaderValue>| (role.clone(), headers))
         .and_then(authorize)
@@ -51,7 +51,7 @@ pub fn with_auth(role: Role) -> impl Filter<Extract = (String,), Error = Rejecti
 
 pub fn create_jwt(uid: &str, role: &Role) -> Result<String> {
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(60))
+        .checked_add_signed(chrono::Duration::seconds(300))
         .expect("valid timestamp")
         .timestamp();
 
@@ -65,7 +65,7 @@ pub fn create_jwt(uid: &str, role: &Role) -> Result<String> {
         .map_err(|_| Error::JWTTokenCreationError)
 }
 
-async fn authorize((role, headers): (Role, HeaderMap<HeaderValue>)) -> WebResult<String> {
+async fn authorize((role, headers): (Role, HeaderMap<HeaderValue>)) -> WebResult<bool> {
     match jwt_from_header(&headers) {
         Ok(jwt) => {
             let decoded = decode::<Claims>(
@@ -79,7 +79,7 @@ async fn authorize((role, headers): (Role, HeaderMap<HeaderValue>)) -> WebResult
                 return Err(reject::custom(Error::NoPermissionError));
             }
 
-            Ok(decoded.claims.sub)
+            Ok(true)
         }
         Err(e) => return Err(reject::custom(e)),
     }

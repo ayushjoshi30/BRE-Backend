@@ -3,6 +3,7 @@ use warp::Filter;
 use crate::models::login_model::*;
 use std::sync::Arc;
 use crate::controllers::login_handler::*;
+use crate::controllers::user_handler::*;
 use crate::auth::auth::{with_auth, Role};
 
 // A function to build our routes
@@ -13,7 +14,8 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
         .or(admin_route(db_pool.clone()))
         .or(view_tenants_route(db_pool.clone()))
         .or(new_tenant(db_pool.clone()))
-        .or(newuser(db_pool.clone()))
+        .or(create_user(db_pool.clone()))
+        .or(read_user(db_pool.clone()))
 }
 
 // A Route to handle login
@@ -52,14 +54,23 @@ pub fn view_tenants_route(db_pool : Arc<DatabaseConnection>)->impl Filter<Extrac
         .and(with_pool(db_pool))
         .and_then(view_tenants)
 }
-pub fn newuser(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("newuser")
+pub fn create_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("create_user")
        .and(warp::post())
        .and(with_auth(Role::Admin))
        .and(warp::body::json())
        .and(with_pool(db_pool))
-       .and_then(new_user)
+       .and_then(create_user_handler)
 }
+// Read User
+pub fn read_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_user" / u32)
+       .and(warp::get())
+       .and(with_auth(Role::Admin))
+       .and(with_pool(db_pool))
+       .and_then(read_user_handler)
+}
+
 pub fn new_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("newtenant")
        .and(warp::post())
