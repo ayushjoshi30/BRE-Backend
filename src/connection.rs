@@ -5,9 +5,9 @@ use std::env;
 
 pub async fn init_db() -> DatabaseConnection {
     dotenv().ok();
-    let DATABASE_URL = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     // Run the database
-    let mut opt = ConnectOptions::new(format!("{}", DATABASE_URL));
+    let mut opt = ConnectOptions::new(format!("{}", database_url));
     opt.max_connections(100)
         .min_connections(5)
         .connect_timeout(Duration::from_secs(8))
