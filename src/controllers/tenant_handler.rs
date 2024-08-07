@@ -53,6 +53,13 @@ pub async fn delete_tenant_handler(id:i32,_:bool,db_pool:Arc<DatabaseConnection>
         Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
+pub async fn read_all_tenants_handler(_:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    match TenantEntity::find().all(&*db_pool).await {
+        // If the user is empty, return a 404
+        Ok(tenants) => Ok(warp::reply::json(&tenants)),
+        Err(_) => Err(reject::custom(DatabaseError)),
+    }
+}
 pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 

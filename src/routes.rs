@@ -18,6 +18,7 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
         .or(delete_tenant(db_pool.clone()))
         .or(update_tenant(db_pool.clone()))
         .or(read_all_users(db_pool.clone()))
+        .or(read_all_tenants(db_pool.clone()))
         .or(update_user(db_pool.clone()))
         .or(delete_user(db_pool.clone()))
 }
@@ -90,8 +91,13 @@ pub fn read_all_users(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = 
        .and(with_auth(Role::Admin))
        .and(with_pool(db_pool))
        .and_then(read_all_users_handler)
+}pub fn read_all_tenants(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_all_tenants")
+       .and(warp::get())
+       .and(with_auth(Role::Admin))
+       .and(with_pool(db_pool))
+       .and_then(read_all_tenants_handler)
 }
-
 // Update User
 pub fn update_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("update_user" / u32)
