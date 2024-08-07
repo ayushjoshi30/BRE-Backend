@@ -51,7 +51,7 @@ pub fn with_auth(role: Role) -> impl Filter<Extract = (bool,), Error = Rejection
 
 pub fn create_jwt(uid: &str, role: &Role) -> Result<String> {
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(300))
+        .checked_add_signed(chrono::Duration::hours(1000))
         .expect("valid timestamp")
         .timestamp();
 

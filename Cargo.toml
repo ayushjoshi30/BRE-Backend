@@ -18,3 +18,4 @@ chrono = "0.4"
 thiserror = "1.0"
 dotenv = "0.15.0"
 sea-orm = { version = "0.12.15", features = [ "sqlx-postgres", "runtime-tokio-rustls", "macros" ] }
+sha2 = "0.10.8"
