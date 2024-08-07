@@ -20,7 +20,7 @@ pub enum Error {
     #[error("invalid request body")]
     InvalidRequestBodyError,
     #[error("database error")]
-    DatabaseErrorr,
+    DatabaseError,
     #[error("Resource not found")]
     ResourceNotFound
 }

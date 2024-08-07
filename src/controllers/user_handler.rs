@@ -47,7 +47,7 @@ pub async fn read_user_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnection>
         Ok(Some(user)) => Ok(warp::reply::json(&user)),
         Ok(None) => Err(reject::custom(ResourceNotFound)),
 
-        Err(_) => Err(reject::custom(DatabaseErrorr)),
+        Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
 
@@ -55,12 +55,12 @@ pub async fn read_all_users_handler(_:bool, db_pool: Arc<DatabaseConnection>) ->
     match UserEntity::find().all(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(users) => Ok(warp::reply::json(&users)),
-        Err(_) => Err(reject::custom(DatabaseErrorr)),
+        Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
 
 pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
 
@@ -78,7 +78,7 @@ pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: A
         ..Default::default()
     };
 
-    let updated_user = user_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+    let updated_user = user_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     // Construct a response with the changes made
     let response = json!({
@@ -91,7 +91,7 @@ pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: A
 }
 
 pub async fn delete_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
 
@@ -100,7 +100,7 @@ pub async fn delete_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnectio
         ..Default::default()
     };
 
-    let _ = user.delete(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+    let _ = user.delete(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let response = json!({
         "message": "User deleted successfully",

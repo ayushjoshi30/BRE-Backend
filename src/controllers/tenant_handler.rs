@@ -36,7 +36,7 @@ pub async fn read_tenant_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnectio
         Ok(Some(tenant)) => Ok(warp::reply::json(&tenant)),
         Ok(None) => Err(reject::custom(ResourceNotFound)),
 
-        Err(_) => Err(reject::custom(DatabaseErrorr)),  
+        Err(_) => Err(reject::custom(DatabaseError)),  
     }
 }
 
@@ -50,11 +50,11 @@ pub async fn delete_tenant_handler(id:i32,_:bool,db_pool:Arc<DatabaseConnection>
             Ok(warp::reply::json(&format!("{} rows deleted", result.rows_affected)))
         }
         Ok(_) => Err(reject::custom(ResourceNotFound)), // Handle case where no rows were affected
-        Err(_) => Err(reject::custom(DatabaseErrorr)),
+        Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
 pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
-    let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+    let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let tenant = tenant.ok_or(reject::custom(ResourceNotFound))?;
     let changes_map = changes_map_users(tenant.clone(), body.clone());
@@ -86,7 +86,7 @@ pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Ar
         .filter(tenants::Column::Id.eq(id))
         .exec(&*db_pool)
         .await
-        .map_err(|_| reject::custom(DatabaseErrorr))?;
+        .map_err(|_| reject::custom(DatabaseError))?;
 
     // Retrieve the updated tenant
     match tenants::Entity::find()
@@ -94,9 +94,12 @@ pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Ar
         .one(&*db_pool)
         .await
     {
-        Ok(Some(tenant)) => Ok(warp::reply::json(&tenant)),
-        Ok(None) => Err(reject::custom(ResourceNotFound)),
-        Err(_) => Err(reject::custom(DatabaseErrorr)),
+        Ok(Some(tenant)) => {
+            let response = warp::reply::json(&(tenant, changes_map));
+            Ok(response)
+        }
+        Ok(None) => Err(warp::reject::custom(ResourceNotFound)),
+        Err(_) => Err(warp::reject::custom(DatabaseError)),
     }
 }
 fn changes_map_users(tenant: tenants::Model, body: tenants::Model) -> HashMap<String, Option<std::option::Option<std::string::String>>>{
