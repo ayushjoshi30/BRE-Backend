@@ -1,4 +1,6 @@
 use std::sync::Arc;
+
+use std::collections::HashMap;
 use entity::tenants;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait};
 use warp::{reject, reply::Reply};
@@ -52,6 +54,10 @@ pub async fn delete_tenant_handler(id:i32,_:bool,db_pool:Arc<DatabaseConnection>
     }
 }
 pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+    let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseErrorr))?;
+
+    let tenant = tenant.ok_or(reject::custom(ResourceNotFound))?;
+    let changes_map = changes_map_users(tenant.clone(), body.clone());
     let mut update_query = tenants::ActiveModel {
         id: Set(id),
         ..Default::default() // Start with default values
@@ -92,4 +98,19 @@ pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Ar
         Ok(None) => Err(reject::custom(ResourceNotFound)),
         Err(_) => Err(reject::custom(DatabaseErrorr)),
     }
+}
+fn changes_map_users(tenant: tenants::Model, body: tenants::Model) -> HashMap<String, Option<std::option::Option<std::string::String>>>{
+    let mut changes = HashMap::new();
+    
+    if tenant.identifier != body.identifier {
+        changes.insert("identifier".to_string(), Some(body.identifier.clone()));
+    }
+    if tenant.workspace_id != body.workspace_id {
+        changes.insert("workspace_id".to_string(), Some(body.workspace_id.clone()));
+    }
+    if tenant.base_url != body.base_url {
+        changes.insert("base_url".to_string(), Some(body.base_url.clone()));
+    }
+    
+    changes
 }
