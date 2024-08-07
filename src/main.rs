@@ -8,6 +8,7 @@ mod models {
 mod controllers {
     pub mod login_handler;
     pub mod user_handler;
+    pub mod tenant_handler;
 }
 mod routes;
 // mod util;

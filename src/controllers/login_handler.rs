@@ -30,7 +30,9 @@ pub async fn login_handler(users: Users, body: LoginRequest) -> WebResult<impl R
 
 pub async fn user_handler(authenticated:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     // Determine the role based on the uid
-
+    if authenticated {
+        print!("Authenticating")
+    }
     // Call the user data entry function
     let admin_users = UserEntity::find()
         .filter(UserColumn::Role.eq("User")) // Use the correct column variant
@@ -74,27 +76,4 @@ pub async fn admin_handler(authenticated:bool, db_pool: Arc<DatabaseConnection>)
     });
 
     Ok(warp::reply::json(&response_obj))
-}
-pub async fn set_tenant(
-    _: bool,
-    body: tenants::Model,
-    db_pool: Arc<DatabaseConnection>,
-) -> WebResult<impl Reply> {
-    // Dummy response object
-    let response_obj = json!({
-        "message": "Tenant created successfully!",
-        "tenant": body
-    });
-
-    Ok(warp::reply::json(&response_obj))
-}
-
-pub async fn view_tenants(_:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match TenantEntity::find().all(&*db_pool).await {
-        Ok(tenants) => Ok(warp::reply::json(&tenants)),
-        Err(e) => {
-            eprintln!("Error retrieving tenants: {:?}", e);
-            Err(reject::custom(error::Error::DatabaseErrorr)) // Specific to your defined Error enum
-        }
-    }
 }

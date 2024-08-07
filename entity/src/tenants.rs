@@ -10,9 +10,9 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     #[sea_orm(unique)]
-    pub identifier: String,
-    pub workspace_id: String,
-    pub base_url: String,
+    pub identifier: Option<String>,
+    pub workspace_id: Option<String>,
+    pub base_url: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

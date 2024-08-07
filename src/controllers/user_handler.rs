@@ -33,7 +33,7 @@ pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool
 }
 
 
-pub async fn read_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_user_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(Some(user)) => Ok(warp::reply::json(&user)),
