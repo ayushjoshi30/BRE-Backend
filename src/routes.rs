@@ -11,22 +11,15 @@ use crate::auth::auth::{with_auth, Role};
 pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     // Make db available to all routes
     login_route()
-<<<<<<< HEAD
-        .or(user_route(db_pool.clone()))
-        .or(admin_route(db_pool.clone()))
         .or(create_user(db_pool.clone()))
         .or(read_user(db_pool.clone()))
         .or(create_tenant(db_pool.clone()))
         .or(read_tenant(db_pool.clone()))
         .or(delete_tenant(db_pool.clone()))
         .or(update_tenant(db_pool.clone()))
-=======
-        .or(create_user(db_pool.clone()))
-        .or(read_user(db_pool.clone()))
         .or(read_all_users(db_pool.clone()))
         .or(update_user(db_pool.clone()))
         .or(delete_user(db_pool.clone()))
->>>>>>> 284f27156b2dc14bb957816b961734c0b74e10bf
 }
 
 // A Route to handle login
@@ -40,24 +33,7 @@ pub fn login_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Re
         .and_then(login_handler)
 }
 
-<<<<<<< HEAD
 // A Route to handle user
-pub fn user_route(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path("user")
-        .and(warp::get())
-        .and(with_auth(Role::Admin))
-        .and(with_pool(db_pool))  // Parses the JSON body into the appropriate type
-        .and_then(user_handler)  // Calls the handler function
-}
-
-// A Route to handle admin
-pub fn admin_route(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("admin")
-        .and(warp::get())
-        .and(with_auth(Role::Admin))
-        .and(with_pool(db_pool))
-        .and_then(admin_handler)
-}
 
 pub fn read_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("read_tenant"/i32)
@@ -66,8 +42,6 @@ pub fn read_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = imp
         .and(with_pool(db_pool))
         .and_then(read_tenant_handler)
 }
-=======
->>>>>>> 284f27156b2dc14bb957816b961734c0b74e10bf
 pub fn create_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("create_user")
        .and(warp::post())
@@ -85,7 +59,6 @@ pub fn read_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl 
        .and_then(read_user_handler)
 }
 
-<<<<<<< HEAD
 pub fn create_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("create_tenant")
        .and(warp::post())
@@ -109,7 +82,7 @@ pub fn update_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = i
        .and(warp::body::json())
        .and(with_pool(db_pool))
        .and_then(update_tenant_handler)
-=======
+}
 // Read All Users
 pub fn read_all_users(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("read_all_users")
@@ -136,7 +109,6 @@ pub fn delete_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = imp
        .and(with_auth(Role::Admin))
        .and(with_pool(db_pool))
        .and_then(delete_user_handler)
->>>>>>> 284f27156b2dc14bb957816b961734c0b74e10bf
 }
 
 fn with_pool(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = (Arc<DatabaseConnection>,), Error = std::convert::Infallible> + Clone {

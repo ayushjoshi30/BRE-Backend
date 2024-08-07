@@ -17,8 +17,8 @@ pub enum Error {
     InvalidAuthHeaderError,
     #[error("no permission")]
     NoPermissionError,
-    // #[error("invalid request body")]
-    // InvalidRequestBodyError,
+    #[error("invalid request body")]
+    InvalidRequestBodyError,
     #[error("database error")]
     DatabaseErrorr,
     #[error("Resource not found")]
