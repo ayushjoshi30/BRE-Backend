@@ -10,10 +10,10 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     #[sea_orm(unique)]
-    pub username: String,
-    pub workspace_id: String,
-    pub password: String,
-    pub role: String,
+    pub username: Option<String>,
+    pub workspace_id: Option<String>,
+    pub password: Option<String>,
+    pub role: Option<String>,
     #[serde(skip_deserializing)]
     pub created_at: DateTime,
     #[serde(skip_deserializing)]

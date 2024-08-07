@@ -9,18 +9,27 @@ use crate::auth::auth::{with_auth, Role};
 
 // A function to build our routes
 pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    // Make db available to all routes
+    let user_routes = warp::path("user")
+        .and(
+            create_user(db_pool.clone())
+                .or(read_user(db_pool.clone()))
+                .or(read_all_users(db_pool.clone()))
+                .or(update_user(db_pool.clone()))
+                .or(delete_user(db_pool.clone()))
+        );
+ 
+    let tenant_routes = warp::path("tenant")
+        .and(
+            create_tenant(db_pool.clone())
+                .or(read_tenant(db_pool.clone()))
+                .or(read_all_tenants(db_pool.clone()))
+                .or(update_tenant(db_pool.clone()))
+                .or(delete_tenant(db_pool.clone()))
+        );
+ 
     login_route()
-        .or(create_user(db_pool.clone()))
-        .or(read_user(db_pool.clone()))
-        .or(create_tenant(db_pool.clone()))
-        .or(read_tenant(db_pool.clone()))
-        .or(delete_tenant(db_pool.clone()))
-        .or(update_tenant(db_pool.clone()))
-        .or(read_all_users(db_pool.clone()))
-        .or(read_all_tenants(db_pool.clone()))
-        .or(update_user(db_pool.clone()))
-        .or(delete_user(db_pool.clone()))
+        .or(user_routes)
+        .or(tenant_routes)
 }
 
 // A Route to handle login
@@ -35,13 +44,42 @@ pub fn login_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Re
 }
 
 // A Route to handle user
-
 pub fn read_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("read_tenant"/i32)
         .and(warp::get())
         .and(with_auth(Role::Admin))
         .and(with_pool(db_pool))
         .and_then(read_tenant_handler)
+}
+pub fn create_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("create_tenant")
+       .and(warp::post())
+       .and(with_auth(Role::Admin))
+       .and(warp::body::json())
+       .and(with_pool(db_pool))
+       .and_then(create_tenant_handler)
+}
+pub fn delete_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("delete_tenant"/i32)
+        .and(warp::delete())
+        .and(with_auth(Role::Admin))
+        .and(with_pool(db_pool))
+        .and_then(delete_tenant_handler)
+}
+pub fn update_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("update_tenant"/i32)
+       .and(warp::put())
+       .and(with_auth(Role::Admin))
+       .and(warp::body::json())
+       .and(with_pool(db_pool))
+       .and_then(update_tenant_handler)
+}
+pub fn read_all_tenants(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_all_tenants")
+       .and(warp::get())
+       .and(with_auth(Role::Admin))
+       .and(with_pool(db_pool))
+       .and_then(read_all_tenants_handler)
 }
 pub fn create_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("create_user")
@@ -60,30 +98,6 @@ pub fn read_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl 
        .and_then(read_user_handler)
 }
 
-pub fn create_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("create_tenant")
-       .and(warp::post())
-       .and(with_auth(Role::Admin))
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(create_tenant_handler)
-}
-
-pub fn delete_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_tenant"/i32)
-        .and(warp::delete())
-        .and(with_auth(Role::Admin))
-        .and(with_pool(db_pool))
-        .and_then(delete_tenant_handler)
-}
-pub fn update_tenant(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_tenant"/i32)
-       .and(warp::put())
-       .and(with_auth(Role::Admin))
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_tenant_handler)
-}
 // Read All Users
 pub fn read_all_users(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("read_all_users")
@@ -91,12 +105,6 @@ pub fn read_all_users(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = 
        .and(with_auth(Role::Admin))
        .and(with_pool(db_pool))
        .and_then(read_all_users_handler)
-}pub fn read_all_tenants(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_all_tenants")
-       .and(warp::get())
-       .and(with_auth(Role::Admin))
-       .and(with_pool(db_pool))
-       .and_then(read_all_tenants_handler)
 }
 // Update User
 pub fn update_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{

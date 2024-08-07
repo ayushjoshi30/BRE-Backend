@@ -20,13 +20,18 @@ pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool
 
     // Hash the password before storing it
     let mut hasher = Sha256::new();
-    hasher.update(body.password.as_bytes());
+    if let Some(password) = body.password.clone() {
+        if !password.is_empty() {
+            hasher.update(password.as_bytes());
+        }
+    }
+    // hasher.update(Some(body.password.clone()).as_bytes());
     let hashed_password = format!("{:x}", hasher.finalize());
 
     let user = users::ActiveModel {
         username: Set(body.username),
         workspace_id: Set(body.workspace_id),
-        password: Set(hashed_password),
+        password: Set(Some(hashed_password)),
         role: Set(body.role),
         last_login: Set(null_date_time), // Set the last login to the current time
         ..Default::default()
@@ -63,20 +68,8 @@ pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: A
     let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
-
     // create a map of changes made to user
-
-    let changes_map = changes_map_users(user.clone(), body.clone());
-
-    let user_model = users::ActiveModel {
-        id: Set(user.id),
-        username: Set(body.username),
-        workspace_id: Set(body.workspace_id),
-        password: Set(body.password),
-        role: Set(body.role),
-        last_login: Set(user.last_login),
-        ..Default::default()
-    };
+    let (changes_map, user_model) = update_map_users(user, body, id as i32);
 
     let updated_user = user_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
@@ -84,7 +77,7 @@ pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: A
     let response = json!({
         "message": "User updated successfully",
         "changes": changes_map,
-        "user": updated_user
+        "entity": updated_user
     });
 
     Ok(warp::reply::json(&response))
@@ -110,22 +103,40 @@ pub async fn delete_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnectio
     Ok(warp::reply::json(&response))
 }
 
-fn changes_map_users(user: users::Model, body: users::Model) -> HashMap<String, String> {
+fn update_map_users(user: users::Model, body: users::Model, id: i32) -> (HashMap<String, Option<std::option::Option<std::string::String>>>, users::ActiveModel) {
+    let mut update_query = users::ActiveModel {
+        id: Set(id),
+        ..Default::default() // Start with default values
+    };
+
     let mut changes = HashMap::new();
-    if user.username != body.username {
-        changes.insert("username".to_string(), body.username);
+
+    if let Some(workspace_id) = body.workspace_id.clone() {
+        if !workspace_id.is_empty() {
+            update_query.workspace_id = Set(Some(workspace_id));
+            if user.workspace_id != body.workspace_id {
+                changes.insert("workspace_id".to_string(), Some(body.workspace_id));
+            }
+        }
     }
-    if user.workspace_id != body.workspace_id {
-        changes.insert("workspace_id".to_string(), body.workspace_id.to_string());
+
+    if let Some(username) = body.username.clone() {
+        if !username.is_empty() {
+            update_query.username = Set(Some(username));
+            if user.username != body.username {
+                changes.insert("username".to_string(), Some(body.username));
+            }
+        }
     }
-    if user.password != body.password {
-        changes.insert("password".to_string(), body.password);
+
+    if let Some(role ) = body.role.clone() {
+        if !role.is_empty() {
+            update_query.role = Set(Some(role));
+            if user.role != body.role {
+                changes.insert("role".to_string(), Some(body.role));
+            }
+        }
     }
-    if user.role != body.role {
-        changes.insert("role".to_string(), body.role);
-    }
-    if user.last_login != NaiveDateTime::from_timestamp(0, 0) {
-        changes.insert("last_login".to_string(), body.last_login.to_string());
-    }
-    changes
+
+    (changes, update_query)
 }

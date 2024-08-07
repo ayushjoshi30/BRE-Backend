@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use entity::tenants;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait};
+use serde_json::json;
 use warp::{reject, reply::Reply};
 use crate::error::Error::*;
 use crate::WebResult;
@@ -64,63 +65,55 @@ pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Ar
     let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let tenant = tenant.ok_or(reject::custom(ResourceNotFound))?;
-    let changes_map = changes_map_users(tenant.clone(), body.clone());
+    
+    let (changes, tenant_model)  = update_map_tenants(tenant.clone(), body.clone(), id);
+    
+    let updated_tenant = tenant_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+
+    // Construct a response with the changes made
+    let response = json!({
+        "message": "Tenant updated successfully",
+        "changes": changes,
+        "entity": updated_tenant
+    });
+
+    Ok(warp::reply::json(&response))
+}
+
+fn update_map_tenants(tenant: tenants::Model, body: tenants::Model, id: i32) -> (HashMap<String, Option<std::option::Option<std::string::String>>>, tenants::ActiveModel) {
     let mut update_query = tenants::ActiveModel {
         id: Set(id),
         ..Default::default() // Start with default values
     };
 
-    if let Some(identifier) = body.identifier {
+    let mut changes = HashMap::new();
+
+    if let Some(identifier) = body.identifier.clone() {
         if !identifier.is_empty() {
             update_query.identifier = Set(Some(identifier));
+            if tenant.identifier != body.identifier {
+                changes.insert("identifier".to_string(), Some(body.identifier));
+            }
         }
     }
 
-    if let Some(base_url) = body.base_url {
+    if let Some(base_url) = body.base_url.clone() {
         if !base_url.is_empty() {
             update_query.base_url = Set(Some(base_url));
+            if tenant.base_url != body.base_url {
+                changes.insert("base_url".to_string(), Some(body.base_url));
+            }
         }
     }
 
-    if let Some(workspace_id ) = body.workspace_id {
+    if let Some(workspace_id ) = body.workspace_id.clone() {
         if !workspace_id.is_empty() {
             update_query.workspace_id = Set(Some(workspace_id));
+            if tenant.workspace_id != body.workspace_id {
+                changes.insert("workspace_id".to_string(), Some(body.workspace_id));
+            }
         }
     }
 
-    // Execute the update
-    tenants::Entity::update(update_query)
-        .filter(tenants::Column::Id.eq(id))
-        .exec(&*db_pool)
-        .await
-        .map_err(|_| reject::custom(DatabaseError))?;
-
-    // Retrieve the updated tenant
-    match tenants::Entity::find()
-        .filter(tenants::Column::Id.eq(id))
-        .one(&*db_pool)
-        .await
-    {
-        Ok(Some(tenant)) => {
-            let response = warp::reply::json(&(tenant, changes_map));
-            Ok(response)
-        }
-        Ok(None) => Err(warp::reject::custom(ResourceNotFound)),
-        Err(_) => Err(warp::reject::custom(DatabaseError)),
-    }
-}
-fn changes_map_users(tenant: tenants::Model, body: tenants::Model) -> HashMap<String, Option<std::option::Option<std::string::String>>>{
-    let mut changes = HashMap::new();
-    
-    if tenant.identifier != body.identifier {
-        changes.insert("identifier".to_string(), Some(body.identifier.clone()));
-    }
-    if tenant.workspace_id != body.workspace_id {
-        changes.insert("workspace_id".to_string(), Some(body.workspace_id.clone()));
-    }
-    if tenant.base_url != body.base_url {
-        changes.insert("base_url".to_string(), Some(body.base_url.clone()));
-    }
-    
-    changes
+    (changes, update_query)
 }
