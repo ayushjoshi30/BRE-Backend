@@ -12,9 +12,9 @@ use crate::WebResult;
 use entity::users::Entity as UserEntity;
 
 
-pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
 
-    print!("Request Authenticated: {}", authenticated);
+
 
     let null_date_time = NaiveDateTime::from_timestamp(0, 0);
 
@@ -32,7 +32,6 @@ pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool
         username: Set(body.username),
         workspace_id: Set(body.workspace_id),
         password: Set(Some(hashed_password)),
-        role: Set(body.role),
         last_login: Set(null_date_time), // Set the last login to the current time
         ..Default::default()
     };
@@ -46,7 +45,7 @@ pub async fn create_user_handler(authenticated: bool ,body: users::Model,db_pool
 }
 
 
-pub async fn read_user_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_user_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(Some(user)) => Ok(warp::reply::json(&user)),
@@ -56,7 +55,7 @@ pub async fn read_user_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnection>
     }
 }
 
-pub async fn read_all_users_handler(_:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_all_users_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match UserEntity::find().all(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(users) => Ok(warp::reply::json(&users)),
@@ -64,7 +63,7 @@ pub async fn read_all_users_handler(_:bool, db_pool: Arc<DatabaseConnection>) ->
     }
 }
 
-pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn update_user_handler(id: u32, _:String, body: users::Model, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
@@ -83,7 +82,7 @@ pub async fn update_user_handler(id: u32, _:bool, body: users::Model, db_pool: A
     Ok(warp::reply::json(&response))
 }
 
-pub async fn delete_user_handler(id: u32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn delete_user_handler(id: u32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
@@ -129,14 +128,6 @@ fn update_map_users(user: users::Model, body: users::Model, id: i32) -> (HashMap
         }
     }
 
-    if let Some(role ) = body.role.clone() {
-        if !role.is_empty() {
-            update_query.role = Set(Some(role));
-            if user.role != body.role {
-                changes.insert("role".to_string(), Some(body.role));
-            }
-        }
-    }
 
     (changes, update_query)
 }

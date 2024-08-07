@@ -38,34 +38,34 @@ impl fmt::Display for Role {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Claims {
-    sub: String,
-    role: String,
+    key: String,
     exp: usize,
+    user:String,
 }
 
-pub fn with_auth(role: Role) -> impl Filter<Extract = (bool,), Error = Rejection> + Clone {
+pub fn with_auth() -> impl Filter<Extract = (String,), Error = Rejection> + Clone {
     headers_cloned()
-        .map(move |headers: HeaderMap<HeaderValue>| (role.clone(), headers))
+        .map(move |headers: HeaderMap<HeaderValue>| ( headers))
         .and_then(authorize)
 }
 
-pub fn create_jwt(uid: &str, role: &Role) -> Result<String> {
+pub fn create_jwt(username:String) -> Result<String> {
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::hours(1000))
         .expect("valid timestamp")
         .timestamp();
 
     let claims = Claims {
-        sub: uid.to_owned(),
-        role: role.to_string(),
+        key: String::from("graviton"),
         exp: expiration as usize,
+        user: String::from(username),
     };
     let header = Header::new(Algorithm::HS512);
     encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
         .map_err(|_| Error::JWTTokenCreationError)
 }
 
-async fn authorize((role, headers): (Role, HeaderMap<HeaderValue>)) -> WebResult<bool> {
+async fn authorize( headers:  HeaderMap<HeaderValue>) -> WebResult<String> {
     match jwt_from_header(&headers) {
         Ok(jwt) => {
             let decoded = decode::<Claims>(
@@ -75,11 +75,14 @@ async fn authorize((role, headers): (Role, HeaderMap<HeaderValue>)) -> WebResult
             )
             .map_err(|_| reject::custom(Error::JWTTokenError))?;
 
-            if role == Role::Admin && Role::from_str(&decoded.claims.role) != Role::Admin {
+            if String::from(&decoded.claims.key) != String::from("graviton") {
                 return Err(reject::custom(Error::NoPermissionError));
             }
-
-            Ok(true)
+            if decoded.claims.user.is_empty(){
+                return Err(reject::custom(Error::ParseTokenError));
+            }
+            
+            Ok(decoded.claims.user)
         }
         Err(e) => return Err(reject::custom(e)),
     }

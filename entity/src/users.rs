@@ -13,7 +13,6 @@ pub struct Model {
     pub username: Option<String>,
     pub workspace_id: Option<String>,
     pub password: Option<String>,
-    pub role: Option<String>,
     #[serde(skip_deserializing)]
     pub created_at: DateTime,
     #[serde(skip_deserializing)]

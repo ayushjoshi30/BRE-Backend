@@ -10,7 +10,7 @@ use crate::WebResult;
 use entity::tenants::Entity as TenantEntity;
 
 
-pub async fn create_tenant_handler(authenticated: bool ,body: tenants::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+pub async fn create_tenant_handler(authenticated: String ,body: tenants::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
 
     print!("Request Authenticated: {}", authenticated);
 
@@ -31,7 +31,7 @@ pub async fn create_tenant_handler(authenticated: bool ,body: tenants::Model,db_
 }
 
 
-pub async fn read_tenant_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_tenant_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await {
         // If the user is empty, return a 404   
         Ok(Some(tenant)) => Ok(warp::reply::json(&tenant)),
@@ -41,7 +41,7 @@ pub async fn read_tenant_handler(id: i32, _:bool, db_pool: Arc<DatabaseConnectio
     }
 }
 
-pub async fn delete_tenant_handler(id:i32,_:bool,db_pool:Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+pub async fn delete_tenant_handler(id:i32,_:String,db_pool:Arc<DatabaseConnection>) -> WebResult<impl Reply>{
     match tenants::Entity::delete_many()
         .filter(tenants::Column::Id.eq(id.clone()))
         .exec(&*db_pool)
@@ -54,14 +54,14 @@ pub async fn delete_tenant_handler(id:i32,_:bool,db_pool:Arc<DatabaseConnection>
         Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn read_all_tenants_handler(_:bool, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_all_tenants_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match TenantEntity::find().all(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(tenants) => Ok(warp::reply::json(&tenants)),
         Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn update_tenant_handler(id:i32,_:bool,body: tenants::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+pub async fn update_tenant_handler(id:i32,_:String,body: tenants::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let tenant = TenantEntity::find().filter(tenants::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let tenant = tenant.ok_or(reject::custom(ResourceNotFound))?;
