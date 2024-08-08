@@ -11,6 +11,10 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Insert statement filling all the details
+        
+
+        // Create table statement
         manager
             .create_table(
                 Table::create()
@@ -45,7 +49,41 @@ impl MigrationTrait for Migration {
                     .col(boolean(GAppusers::IsAdmin).default(false))
                     .to_owned(),
             )
-            .await
+            .await?;
+            let insert = Query::insert()
+            .into_table(GAppusers::Table)
+            .columns([
+                GAppusers::FirstName,
+                GAppusers::LastName,
+                GAppusers::UserName,
+                GAppusers::Email,
+                GAppusers::MobileNo,
+                GAppusers::CreatedOnDate,
+                GAppusers::WorkspaceId,
+                GAppusers::IsActive,
+                GAppusers::IsDeleted,
+                GAppusers::LastLogin,
+                GAppusers::Password,
+                GAppusers::IsAdmin,
+            ])
+            .values_panic([
+                "System".into(),                          // FirstName
+                "User".into(),                           // LastName
+                "admin".into(),                         // UserName
+                "admin@example.com".into(),             // Email
+                "8003464814".into(),                    // MobileNo
+                Expr::current_timestamp().into(),       // CreatedOnDate
+                1.into(),                               // WorkspaceId
+                true.into(),                            // IsActive
+                false.into(),                           // IsDeleted
+                Expr::current_timestamp().into(),       // LastLogin
+                "9ee64312b6ef066abb2bb1cf5083d82b2ad945683c7051bb99c7845143334516".into(),               // Password
+                true.into(),                            // IsAdmin
+            ])
+            .to_owned();
+
+        manager.exec_stmt(insert).await?;
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

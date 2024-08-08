@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::NaiveDateTime;
-use entity::users;
+use entity::g_appusers;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use warp::{reject, reply::Reply};
 use crate::error::Error::*;
 use crate::WebResult;
-use entity::users::Entity as UserEntity;
+use entity::g_appusers::Entity as UserEntity;
 
 
-pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+pub async fn create_user_handler(_: String ,body: g_appusers::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
 
 
 
@@ -28,7 +28,7 @@ pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<Data
     // hasher.update(Some(body.password.clone()).as_bytes());
     let hashed_password = format!("{:x}", hasher.finalize());
 
-    let user = users::ActiveModel {
+    let user = g_appusers::ActiveModel {
         username: Set(body.username),
         workspace_id: Set(body.workspace_id),
         password: Set(Some(hashed_password)),
@@ -36,7 +36,7 @@ pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<Data
         ..Default::default()
     };
 
-    let user: users::Model = user.insert(&*db_pool).await.map_err(|e| {
+    let user: g_appusers::Model = user.insert(&*db_pool).await.map_err(|e| {
         eprintln!("Failed to insert user: {:?}", e);
         reject::custom(WrongCredentialsError)
     })?;
@@ -46,7 +46,7 @@ pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<Data
 
 
 pub async fn read_user_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await {
+    match UserEntity::find().filter(g_appusers::Column::Id.eq(id)).one(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(Some(user)) => Ok(warp::reply::json(&user)),
         Ok(None) => Err(reject::custom(ResourceNotFound)),
@@ -55,20 +55,20 @@ pub async fn read_user_handler(id: i32, _:String, db_pool: Arc<DatabaseConnectio
     }
 }
 
-pub async fn read_all_users_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_all_g_appusers_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match UserEntity::find().all(&*db_pool).await {
         // If the user is empty, return a 404
-        Ok(users) => Ok(warp::reply::json(&users)),
+        Ok(g_appusers) => Ok(warp::reply::json(&g_appusers)),
         Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
 
-pub async fn update_user_handler(id: u32, _:String, body: users::Model, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+pub async fn update_user_handler(id: u32, _:String, body: g_appusers::Model, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    let user = UserEntity::find().filter(g_appusers::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
     // create a map of changes made to user
-    let (changes_map, user_model) = update_map_users(user, body, id as i32);
+    let (changes_map, user_model) = update_map_g_appusers(user, body, id as i32);
 
     let updated_user = user_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
@@ -83,11 +83,11 @@ pub async fn update_user_handler(id: u32, _:String, body: users::Model, db_pool:
 }
 
 pub async fn delete_user_handler(id: u32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    let user = UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+    let user = UserEntity::find().filter(g_appusers::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let user = user.ok_or(reject::custom(ResourceNotFound))?;
 
-    let user = users::ActiveModel {
+    let user = g_appusers::ActiveModel {
         id: Set(user.id),
         ..Default::default()
     };
@@ -102,8 +102,8 @@ pub async fn delete_user_handler(id: u32, _:String, db_pool: Arc<DatabaseConnect
     Ok(warp::reply::json(&response))
 }
 
-fn update_map_users(user: users::Model, body: users::Model, id: i32) -> (HashMap<String, Option<std::option::Option<std::string::String>>>, users::ActiveModel) {
-    let mut update_query = users::ActiveModel {
+fn update_map_g_appusers(user: g_appusers::Model, body: g_appusers::Model, id: i32) -> (HashMap<String, Option<std::option::Option<std::string::String>>>, g_appusers::ActiveModel) {
+    let mut update_query = g_appusers::ActiveModel {
         id: Set(id),
         ..Default::default() // Start with default values
     };

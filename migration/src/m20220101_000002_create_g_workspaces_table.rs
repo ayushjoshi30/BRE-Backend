@@ -11,6 +11,7 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Create table statement
         manager
             .create_table(
                 Table::create()
@@ -26,7 +27,33 @@ impl MigrationTrait for Migration {
                     .col(text(GWorkspaces::OrganizationLogo))
                     .to_owned(),
             )
-            .await
+            .await?;
+
+        // Insert statement to fill all the details
+        let insert = Query::insert()
+            .into_table(GWorkspaces::Table)
+            .columns([
+                GWorkspaces::Identifier,
+                GWorkspaces::OrganisationName,
+                GWorkspaces::OrganisationAddress,
+                GWorkspaces::OrganisationEmail,
+                GWorkspaces::AuthKey,
+                GWorkspaces::BaseUrl,
+                GWorkspaces::OrganizationLogo,
+            ])
+            .values_panic([
+                "demo".into(),                    // Identifier
+                "demoworkspace".into(),                  // OrganisationName
+                "jaipur".into(),       // OrganisationAddress
+                "info@demo.com".into(), 
+                "".into(),                  // OrganisationEmai                     // AuthKey
+                "https://demo.com".into(),                // BaseUrl
+                "demo@kugelblitz.in".into(),          // OrganizationLogo
+            ])
+            .to_owned();
+
+        manager.exec_stmt(insert).await?;
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
