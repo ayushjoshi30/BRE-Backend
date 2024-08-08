@@ -1,11 +1,11 @@
 use crate::auth::auth::*;
 use crate::error;
 use std::sync::Arc;
-use entity::users;
+use entity::g_appusers as users;
 use crate::models::login_model::{LoginRequest, LoginResponse};
 use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, QueryFilter};
 use warp::{reject, reply, Rejection, Reply};
-use entity::users::Entity as UserEntity;
+use entity::g_appusers::Entity as UserEntity;
 use sha2::{Digest, Sha256};
 
 // Define the result type for web responses
@@ -44,16 +44,15 @@ pub async fn authenticate_user(
 
     // Fetch user from database
     match UserEntity::find()
-        .filter(users::Column::Username.eq(body.username))
+        .filter(users::Column::UserName.eq(body.username))
         .one(&*db_pool)
         .await
     {
         Ok(Some(user)) => {
-            // Compare hashed password with stored password
-            if Some(hashed_password) == user.password {
+            if user.password == hashed_password {
                 Ok(true)
             } else {
-                Err(error::Error::WrongCredentialsError)
+                Ok(false)
             }
         },
         Ok(None) => Err(error::Error::ResourceNotFound),
