@@ -14,31 +14,31 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(g_rules::Table)
+                    .table(GRules::Table)
                     .if_not_exists()
-                    .col(pk_auto(g_rules::Id))
-                    .col(integer(g_rules::WorkspaceId).not_null())
+                    .col(pk_auto(GRules::Id))
+                    .col(integer(GRules::WorkspaceId).not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_workspace_id")
-                            .from(g_rules::Table, g_rules::WorkspaceId)
-                            .to(g_workspaces::Table, g_workspaces::Id),
+                            .from(GRules::Table, GRules::WorkspaceId)
+                            .to(GWorkspaces::Table, GWorkspaces::Id),
                     )
-                    .col(string(g_rules::RulePath).not_null())
-                    .col(json_binary(g_rules::RuleJson).not_null())
-                    .col(integer(g_rules::CreatedByUser).not_null())
+                    .col(string(GRules::RulePath).not_null())
+                    .col(json_binary(GRules::RuleJson).not_null())
+                    .col(integer(GRules::CreatedByUser).not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_createdbyuser_id")
-                            .from(g_rules::Table, g_rules::CreatedByUser)
-                            .to(g_appusers::Table, g_appusers::Id),
+                            .from(GRules::Table, GRules::CreatedByUser)
+                            .to(GAppusers::Table, GAppusers::Id),
                     )
-                    .col(timestamp(g_rules::LastUpdated).not_null().default("now()"))
-                    .col(string(g_rules::DraftFilePath))
-                    .col(json_binary(g_rules::DraftFileJson))
-                    .col(boolean(g_rules::IsDraft).default(false))
-                    .col(timestamp(g_rules::PublishedAt))
-                    .col(string(g_rules::Version))
+                    .col(timestamp(GRules::LastUpdated).not_null().default("now()"))
+                    .col(string(GRules::DraftFilePath))
+                    .col(json_binary(GRules::DraftFileJson))
+                    .col(boolean(GRules::IsDraft).default(false))
+                    .col(timestamp(GRules::PublishedAt))
+                    .col(string(GRules::Version))
                     .to_owned(),
             )
             .await
@@ -46,13 +46,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(g_rules::Table).to_owned())
+            .drop_table(Table::drop().table(GRules::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum g_rules {
+enum GRules {
     Table,
     Id,
     WorkspaceId,
@@ -69,12 +69,12 @@ enum g_rules {
 
 
 #[derive(DeriveIden)]
-enum g_workspaces {
+enum GWorkspaces {
     Table,
     Id,
 }
 #[derive(DeriveIden)]
-enum g_appusers {
+enum GAppusers {
     Table,
     Id,
 }

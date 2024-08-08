@@ -14,21 +14,21 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(g_releases::Table)
+                    .table(GReleases::Table)
                     .if_not_exists()
-                    .col(pk_auto(g_releases::Id))
-                    .col(string(g_releases::Version).not_null())
-                    .col(string(g_releases::FilePath).not_null())
-                    .col(json_binary(g_releases::FileJson).not_null())
-                    .col(date_time(g_releases::CreatedAt).not_null().default(Expr::current_timestamp()))
-                    .col(boolean(g_releases::IsReleased).default(false))
-                    .col(date_time(g_releases::ReleasedDate))
-                    .col(integer(g_releases::CreatedByUser).not_null())
+                    .col(pk_auto(GReleases::Id))
+                    .col(string(GReleases::Version).not_null())
+                    .col(string(GReleases::FilePath).not_null())
+                    .col(json_binary(GReleases::FileJson).not_null())
+                    .col(date_time(GReleases::CreatedAt).not_null().default(Expr::current_timestamp()))
+                    .col(boolean(GReleases::IsReleased).default(false))
+                    .col(date_time(GReleases::ReleasedDate))
+                    .col(integer(GReleases::CreatedByUser).not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("CreatedByUser")
-                            .from(g_releases::Table, g_releases::CreatedByUser)
-                            .to(g_appusers::Table, g_appusers::Id),
+                            .from(GReleases::Table, GReleases::CreatedByUser)
+                            .to(GAppusers::Table, GAppusers::Id),
                     )
                     .to_owned(),
             )
@@ -37,13 +37,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(g_releases::Table).to_owned())
+            .drop_table(Table::drop().table(GReleases::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum g_releases {
+enum GReleases {
     Table,
     Id,
     Version,
@@ -56,7 +56,7 @@ enum g_releases {
 }
 
 #[derive(DeriveIden)]
-enum g_appusers {
+enum GAppusers {
     Table,
     Id,
 }

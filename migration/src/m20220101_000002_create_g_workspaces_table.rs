@@ -14,16 +14,16 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(g_workspaces::Table)
+                    .table(GWorkspaces::Table)
                     .if_not_exists()
-                    .col(pk_auto(g_workspaces::Id))
-                    .col(string(g_workspaces::Identifier).not_null().unique_key())
-                    .col(string(g_workspaces::OrganisationName).not_null().unique_key())
-                    .col(text(g_workspaces::OrganisationAddress))
-                    .col(string(g_workspaces::OrganisationEmail).not_null().unique_key())
-                    .col(string(g_workspaces::AuthKey))
-                    .col(string(g_workspaces::BaseUrl))
-                    .col(text(g_workspaces::OrganizationLogo))
+                    .col(pk_auto(GWorkspaces::Id))
+                    .col(string(GWorkspaces::Identifier).not_null().unique_key())
+                    .col(string(GWorkspaces::OrganisationName).not_null().unique_key())
+                    .col(text(GWorkspaces::OrganisationAddress))
+                    .col(string(GWorkspaces::OrganisationEmail).not_null().unique_key())
+                    .col(string(GWorkspaces::AuthKey))
+                    .col(string(GWorkspaces::BaseUrl))
+                    .col(text(GWorkspaces::OrganizationLogo))
                     .to_owned(),
             )
             .await
@@ -31,13 +31,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(g_workspaces::Table).to_owned())
+            .drop_table(Table::drop().table(GWorkspaces::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-pub enum g_workspaces {
+pub enum GWorkspaces {
     Table,
     Id,
     Identifier,

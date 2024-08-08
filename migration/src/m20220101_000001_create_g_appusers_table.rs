@@ -14,35 +14,35 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(g_appusers::Table)
+                    .table(GAppusers::Table)
                     .if_not_exists()
-                    .col(pk_auto(g_appusers::Id))
-                    .col(string(g_appusers::FirstName).not_null())
-                    .col(string(g_appusers::LastName).not_null())
-                    .col(string(g_appusers::UserName).not_null().unique_key())
-                    .col(string(g_appusers::Email).not_null().unique_key())
-                    .col(string(g_appusers::MobileNo).not_null().unique_key())
+                    .col(pk_auto(GAppusers::Id))
+                    .col(string(GAppusers::FirstName).not_null())
+                    .col(string(GAppusers::LastName).not_null())
+                    .col(string(GAppusers::UserName).not_null().unique_key())
+                    .col(string(GAppusers::Email).not_null().unique_key())
+                    .col(string(GAppusers::MobileNo).not_null().unique_key())
                     .col(
-                        date_time(g_appusers::CreatedOnDate)
+                        date_time(GAppusers::CreatedOnDate)
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .col(integer(g_appusers::WorkspaceId).not_null())
+                    .col(integer(GAppusers::WorkspaceId).not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_workspace_id")  // Ensure a unique name for the foreign key
-                            .from(g_appusers::Table, g_appusers::WorkspaceId)
-                            .to(g_workspaces::Table, g_workspaces::Id),
+                            .from(GAppusers::Table, GAppusers::WorkspaceId)
+                            .to(GWorkspaces::Table, GWorkspaces::Id),
                     )
-                    .col(boolean(g_appusers::IsActive).default(true))
-                    .col(boolean(g_appusers::IsDeleted).default(false))
+                    .col(boolean(GAppusers::IsActive).default(true))
+                    .col(boolean(GAppusers::IsDeleted).default(false))
                     .col(
-                        date_time(g_appusers::LastLogin)
+                        date_time(GAppusers::LastLogin)
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .col(string(g_appusers::Password).not_null())
-                    .col(boolean(g_appusers::IsAdmin).default(false))
+                    .col(string(GAppusers::Password).not_null())
+                    .col(boolean(GAppusers::IsAdmin).default(false))
                     .to_owned(),
             )
             .await
@@ -50,13 +50,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(g_appusers::Table).to_owned())
+            .drop_table(Table::drop().table(GAppusers::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum g_appusers {
+enum GAppusers {
     Table,
     Id,
     FirstName,
@@ -74,7 +74,7 @@ enum g_appusers {
 }
 
 #[derive(DeriveIden)]
-enum g_workspaces {
+enum GWorkspaces {
     Table,
     Id,
 }
