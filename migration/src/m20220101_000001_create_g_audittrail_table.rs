@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("WorkspaceId")
                             .from(GAudittrail::Table, GAudittrail::WorkspaceId)
-                            .to(g_workspaces::Table, g_workspaces::Id),                          
+                            .to(GWorkspaces::Table, GWorkspaces::Id),                          
                     )
                     .col(timestamp_with_time_zone(GAudittrail::Timestamp).not_null().default(Expr::current_timestamp()))
                     .col(text(GAudittrail::Details).not_null())
@@ -80,7 +80,7 @@ enum GAppusers {
 }
 
 #[derive(DeriveIden)]
-enum g_workspaces {
+enum GWorkspaces {
     Table,
     Id,
 }

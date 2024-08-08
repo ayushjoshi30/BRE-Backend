@@ -17,7 +17,7 @@ impl MigrationTrait for Migration {
                     .table(GConfigure::Table)
                     .if_not_exists()
                     .col(pk_auto(GConfigure::Id))
-                    .col(string(GConfigure::username))
+                    .col(string(GConfigure::Username))
                     .col(string(GConfigure::Password))
                     .col(string(GConfigure::BucketName))
                     .to_owned(),
@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
 enum GConfigure {
     Table,
     Id,
-    username,
+    Username,
     Password,
     BucketName,
 }
