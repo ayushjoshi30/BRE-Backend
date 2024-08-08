@@ -22,7 +22,7 @@ pub async fn login_handler(
     match authenticate_user(body.clone(), db_pool).await {
         Ok(true) => {
             // Assuming `create_jwt` generates a JWT token
-            let token = create_jwt(body.UserName)
+            let token = create_jwt(body.username)
                 .map_err(|_| reject::custom(error::Error::JWTTokenError))?;
             
             Ok(reply::json(&LoginResponse { token }))
@@ -44,7 +44,7 @@ pub async fn authenticate_user(
 
     // Fetch user from database
     match UserEntity::find()
-        .filter(users::Column::UserName.eq(body.UserName))
+        .filter(users::Column::Username.eq(body.username))
         .one(&*db_pool)
         .await
     {

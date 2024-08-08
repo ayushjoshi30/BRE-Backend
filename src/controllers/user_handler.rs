@@ -29,7 +29,7 @@ pub async fn create_user_handler(_: String ,body: users::Model,db_pool: Arc<Data
     let hashed_password = format!("{:x}", hasher.finalize());
 
     let user = users::ActiveModel {
-        UserName: Set(body.UserName),
+        username: Set(body.username),
         workspace_id: Set(body.workspace_id),
         password: Set(Some(hashed_password)),
         last_login: Set(null_date_time), // Set the last login to the current time
@@ -119,11 +119,11 @@ fn update_map_users(user: users::Model, body: users::Model, id: i32) -> (HashMap
         }
     }
 
-    if let Some(UserName) = body.UserName.clone() {
-        if !UserName.is_empty() {
-            update_query.UserName = Set(Some(UserName));
-            if user.UserName != body.UserName {
-                changes.insert("UserName".to_string(), Some(body.UserName));
+    if let Some(username) = body.username.clone() {
+        if !username.is_empty() {
+            update_query.username = Set(Some(username));
+            if user.username != body.username {
+                changes.insert("username".to_string(), Some(body.username));
             }
         }
     }

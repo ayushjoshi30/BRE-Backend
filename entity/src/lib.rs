@@ -2,6 +2,9 @@
 
 pub mod prelude;
 
-pub mod rules;
-pub mod tenants;
-pub mod users;
+pub mod g_appusers;
+pub mod g_audittrail;
+pub mod g_configure;
+pub mod g_releases;
+pub mod g_rules;
+pub mod g_workspaces;
