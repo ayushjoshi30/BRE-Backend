@@ -18,7 +18,7 @@ impl MigrationTrait for Migration {
                     .table(Users::Table)
                     .if_not_exists()
                     .col(pk_auto(Users::Id))
-                    .col(string(Users::Username).unique_key())
+                    .col(string(Users::UserName).unique_key())
                     .col(string(Users::WorkspaceId))
                     .col(string(Users::Password))
                     .col(string(Users::Role))
@@ -43,7 +43,7 @@ impl MigrationTrait for Migration {
 enum Users {
     Table,
     Id,
-    Username,
+    UserName,
     Password,
     Role,
     WorkspaceId,

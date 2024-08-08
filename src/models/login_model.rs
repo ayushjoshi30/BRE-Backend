@@ -14,7 +14,7 @@ pub struct User {
 
 #[derive(Deserialize,Clone)]
 pub struct LoginRequest {
-    pub username: String,
+    pub UserName: String,
     pub pw: String,
 }
 #[derive(Deserialize)]

@@ -49,7 +49,7 @@ pub fn with_auth() -> impl Filter<Extract = (String,), Error = Rejection> + Clon
         .and_then(authorize)
 }
 
-pub fn create_jwt(username:String) -> Result<String> {
+pub fn create_jwt(UserName:String) -> Result<String> {
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::hours(1000))
         .expect("valid timestamp")
@@ -58,7 +58,7 @@ pub fn create_jwt(username:String) -> Result<String> {
     let claims = Claims {
         key: String::from("graviton"),
         exp: expiration as usize,
-        user: String::from(username),
+        user: String::from(UserName),
     };
     let header = Header::new(Algorithm::HS512);
     encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))

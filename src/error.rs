@@ -25,7 +25,7 @@ pub enum Error {
     ResourceNotFound,
     #[error("Unable to parse token")]
     ParseTokenError,
-    #[error("Invalid Username")]
+    #[error("Invalid UserName")]
     UsernotfoundError,
 }
 

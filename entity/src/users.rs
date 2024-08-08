@@ -10,7 +10,7 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     #[sea_orm(unique)]
-    pub username: Option<String>,
+    pub UserName: Option<String>,
     pub workspace_id: Option<String>,
     pub password: Option<String>,
     #[serde(skip_deserializing)]
