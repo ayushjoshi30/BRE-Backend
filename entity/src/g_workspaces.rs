@@ -7,18 +7,26 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "g_workspaces")]
 pub struct Model {
     #[sea_orm(primary_key)]
+    #[serde(skip_deserializing)]
     pub id: i32,
     #[sea_orm(unique)]
+    #[serde(default)]
     pub identifier: String,
     #[sea_orm(unique)]
+    #[serde(default)]
     pub organisation_name: String,
     #[sea_orm(column_type = "Text")]
+    #[serde(default)]
     pub organisation_address: String,
     #[sea_orm(unique)]
+    #[serde(default)]
     pub organisation_email: String,
+    #[serde(default)]
     pub auth_key: String,
+    #[serde(default)]
     pub base_url: String,
     #[sea_orm(column_type = "Text")]
+    #[serde(default)]
     pub organization_logo: String,
 }
 
