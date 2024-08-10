@@ -60,7 +60,7 @@ pub async fn update_rule_handler(id:i32,_:String,body: rules::Model,db_pool:Arc<
 
     Ok(warp::reply::json(&response))
 }
-pub async fn delete_rule_handler(id: u32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn delete_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
     let rule = rule.ok_or(reject::custom(ResourceNotFound))?;
@@ -79,7 +79,7 @@ pub async fn delete_rule_handler(id: u32, _:String, db_pool: Arc<DatabaseConnect
 
     Ok(warp::reply::json(&response))
 }
-fn update_map_rules(user: rules::Model, body: rules::Model, id: i32) -> (HashMap<String, String>, rules::ActiveModel) {
+fn update_map_rules(rule: rules::Model, body: rules::Model, id: i32) -> (HashMap<String, String>, rules::ActiveModel) {
     let mut update_query = rules::ActiveModel {
         id: Set(id),
         ..Default::default() // Start with default values
@@ -88,7 +88,7 @@ fn update_map_rules(user: rules::Model, body: rules::Model, id: i32) -> (HashMap
     let mut changes = HashMap::new();
 
     let workspace_id = body.workspace_id.clone();
-    if user.workspace_id != workspace_id {
+    if rule.workspace_id != workspace_id {
         changes.insert("workspace_id".to_string(), workspace_id.to_string());
         update_query.workspace_id = Set(workspace_id.clone());
     }
@@ -96,50 +96,50 @@ fn update_map_rules(user: rules::Model, body: rules::Model, id: i32) -> (HashMap
     let rule_path = body.rule_path.clone();
     if !rule_path.is_empty() {
         update_query.rule_path = Set(rule_path.clone());
-        if user.rule_path != rule_path {
+        if rule.rule_path != rule_path {
             changes.insert("rule_path".to_string(), rule_path);
         }
     }
     let rule_json = body.rule_json.clone();
-    if user.rule_json != rule_json {
+    if rule.rule_json != rule_json {
         changes.insert("rule_json".to_string(), rule_json.to_string());
         update_query.rule_json = Set(rule_json.clone());
     }
     let created_by_user = body.created_by_user.clone();  
-    if user.created_by_user!= created_by_user {
+    if rule.created_by_user!= created_by_user {
         changes.insert("created_by_user".to_string(), created_by_user.to_string());
         update_query.created_by_user = Set(created_by_user.clone());
     }
     let last_updated= body.last_updated.clone();
-    if user.last_updated!= last_updated {
+    if rule.last_updated!= last_updated {
         changes.insert("last_updated".to_string(), last_updated.to_string());
         update_query.last_updated = Set(last_updated.clone());
     }
     let draft_file_path = body.draft_file_path.clone();
-    if user.draft_file_path != draft_file_path {
+    if rule.draft_file_path != draft_file_path {
         update_query.draft_file_path = Set(draft_file_path.clone());
         changes.insert("draft_file_path".to_string(), draft_file_path);
     }
     let draft_file_json = body.draft_file_json.clone();
-    if user.draft_file_json != draft_file_json {
+    if rule.draft_file_json != draft_file_json {
         changes.insert("draft_file_json".to_string(), draft_file_json.to_string());
         update_query.draft_file_json = Set(draft_file_json.clone());
     }
     
     let is_draft= body.is_draft.clone();
-    if user.is_draft!= is_draft {
+    if rule.is_draft!= is_draft {
         changes.insert("is_draft".to_string(), is_draft.to_string());
         update_query.is_draft = Set(is_draft.clone());
     }
     let published_at= body.published_at.clone();
-    if user.published_at!= published_at {
+    if rule.published_at!= published_at {
         changes.insert("published_at".to_string(), published_at.to_string());
         update_query.published_at = Set(published_at.clone());
     }
     let version = body.version.clone();
     if !version.is_empty() {
         update_query.version = Set(version.clone());
-        if user.version != version {
+        if rule.version != version {
             changes.insert("version".to_string(), version);
         }
     }

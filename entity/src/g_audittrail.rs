@@ -8,17 +8,27 @@ pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
+    #[serde(default)]
     pub action: String,
+    #[serde(default)]
     pub workspace_id: i32,
+    #[serde(default)]
     pub timestamp: DateTimeWithTimeZone,
     #[sea_orm(column_type = "Text")]
+    #[serde(default)]
     pub details: String,
+    #[serde(default)]
     pub rule_id: i32,
+    #[serde(default)]
     pub user_id: i32,
+    #[serde(default)]
     pub changes_done_at: DateTime,
+    #[serde(default)]
     pub resource_id: i32,
+    #[serde(default)]
     pub sub_resource_id: i32,
     #[sea_orm(column_type = "JsonBinary")]
+    #[serde(default)]
     pub changes_json: Json,
 }
 

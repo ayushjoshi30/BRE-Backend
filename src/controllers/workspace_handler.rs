@@ -139,13 +139,6 @@ fn update_map_workspaces(workspace: workspaces::Model, body: workspaces::Model, 
             changes.insert("auth_key".to_string(), auth_key);
         }
     }
-    let base_url=body.base_url.clone();
-    if!base_url.is_empty() {
-        update_query.base_url = Set(base_url.clone());
-        if workspace.base_url!= base_url {
-            changes.insert("base_url".to_string(), base_url);
-        }
-    }
     let organization_logo=body.organization_logo.clone();
     if!organization_logo.is_empty() {
         update_query.organization_logo = Set(organization_logo.clone());
