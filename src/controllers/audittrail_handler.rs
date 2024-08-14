@@ -2,6 +2,9 @@ use std::sync::Arc;
 use entity::g_audittrail as audittrails;
 use std::collections::HashMap;
 use serde_json::json;
+use sea_orm::prelude::*;
+use serde_json::{Value, Map};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
 use warp::{reject, reply::Reply};
 use crate::error::Error::*;
@@ -51,7 +54,7 @@ pub async fn read_audittrail_handler(id: i32, _:String, db_pool: Arc<DatabaseCon
     Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn update_audittrail_handler(id:i32,_:String,body: audittrails::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+pub async fn update_audittrail_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let audittrail = AudittrailEntity::find().filter(audittrails::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
     
     let audittrail = audittrail.ok_or(reject::custom(ResourceNotFound))?;
@@ -90,65 +93,151 @@ pub async fn read_all_audittrail_handler(_:String, db_pool: Arc<DatabaseConnecti
     }
 }
 
-fn update_map_audittrails(audittrail: audittrails::Model, body: audittrails::Model, id: i32) -> (HashMap<String, String>, audittrails::ActiveModel) {
-    let mut update_query = audittrails::ActiveModel {
-        id: Set(id),
-        ..Default::default() // Start with default values
-    };
+fn get_keys(value: &Value) -> Vec<String> {
+    let mut keys = Vec::new();
+    if let Value::Object(map) = value {
+        for (key, val) in map {
+            keys.push(key.clone());
+            keys.extend(get_keys(val)); // Recursively get keys
+        }
+    }
+    keys
+}
 
+fn update_map_audittrails(
+    audittrail: audittrails::Model,
+    body: HashMap<String, Value>,
+    id: i32,
+) -> (HashMap<String, String>, audittrails::ActiveModel) {
     let mut changes = HashMap::new();
 
-    let action = body.action.clone();
-    if !action.is_empty() {
-        update_query.action = Set(action.clone());
-        if audittrail.action != action {
-            changes.insert("action".to_string(), action);
+    // Convert HashMap to Map
+    let map_body: Map<String, Value> = body.clone().into_iter().collect();
+
+    // Get keys from the body
+    let body_keys = get_keys(&Value::Object(map_body));
+
+    // Initialize an ActiveModel to apply updates
+    let mut update_query = audittrails::ActiveModel {
+        id: Set(id),
+        ..Default::default()
+    };
+
+    // Handle "action"
+    if body_keys.contains(&"action".to_string()) {
+        if let Some(Value::String(action)) = body.get("action") {
+            if audittrail.action != *action {
+                update_query.action = Set(action.clone());
+                changes.insert("action".to_string(), action.clone());
+            }
         }
     }
-    // Handle `details`
-    let details = body.details.clone();
-    if !details.is_empty() {
-        update_query.details = Set(details.clone());
-        if audittrail.details != details {
-            changes.insert("details".to_string(), details);
+
+    // Handle "details"
+    if body_keys.contains(&"details".to_string()) {
+        if let Some(Value::String(details)) = body.get("details") {
+            if audittrail.details != *details {
+                update_query.details = Set(details.clone());
+                changes.insert("details".to_string(), details.clone());
+            }
         }
     }
-    let changes_json= body.changes_json.clone();    
-    if audittrail.changes_json!= changes_json {
-        update_query.changes_json = Set(changes_json.clone());
-        changes.insert("changes_json".to_string(), changes_json.to_string());
+
+    // Handle "changes_json"
+    if body_keys.contains(&"changes_json".to_string()) {
+        if let Some(Value::Object(changes_json)) = body.get("changes_json") {
+            let changes_json_string = serde_json::to_string(changes_json).unwrap_or_default();
+            let changes_json_value: Json = serde_json::from_str(&changes_json_string).unwrap_or_default();
+            if audittrail.changes_json != changes_json_value {
+                update_query.changes_json = Set(changes_json_value);
+                changes.insert("changes_json".to_string(), changes_json_string);
+            }
+        }
     }
-    let changes_done_at=body.changes_done_at.clone();
-    if audittrail.changes_done_at!= changes_done_at {
-        update_query.changes_done_at = Set(changes_done_at.clone());
-        changes.insert("changes_done_at".to_string(), changes_done_at.to_string());
+
+    // Handle "changes_done_at"
+    if body_keys.contains(&"changes_done_at".to_string()) {
+        if let Some(Value::String(changes_done_at)) = body.get("changes_done_at") {
+            if let Ok(parsed_date) = changes_done_at.parse::<NaiveDateTime>() {
+                if audittrail.changes_done_at != parsed_date {
+                    update_query.changes_done_at = Set(parsed_date);
+                    changes.insert("changes_done_at".to_string(), changes_done_at.clone());
+                }
+            }
+        }
     }
-    let rule_id=body.rule_id.clone();
-    if audittrail.rule_id!= rule_id {
-        update_query.rule_id = Set(rule_id.clone());
-        changes.insert("rule_id".to_string(), rule_id.to_string());
+
+    // Handle "rule_id"
+    if body_keys.contains(&"rule_id".to_string()) {
+        if let Some(Value::Number(rule_id)) = body.get("rule_id") {
+            if let Some(rule_id_i32) = rule_id.as_i64() {
+                if audittrail.rule_id != rule_id_i32 as i32 {
+                    update_query.rule_id = Set(rule_id_i32 as i32);
+                    changes.insert("rule_id".to_string(), rule_id_i32.to_string());
+                }
+            }
+        }
     }
-    
-    let timestamp=body.timestamp.clone();
-    if audittrail.timestamp!= timestamp {
-        changes.insert("timestamp".to_string(), timestamp.to_string());
-        update_query.timestamp = Set(audittrail.timestamp.clone());
+    if body_keys.contains(&"user_id".to_string()) {
+        if let Some(Value::Number(user_id)) = body.get("user_id") {
+            if let Some(user_id_i32) = user_id.as_i64() {
+                if audittrail.user_id != user_id_i32 as i32 {
+                    update_query.user_id = Set(user_id_i32 as i32);
+                    changes.insert("user_id".to_string(), user_id_i32.to_string());
+                }
+            }
+        }
     }
-    let workspace_id=body.workspace_id.clone();        
-    if audittrail.workspace_id!= workspace_id {
-        changes.insert("workspace_id".to_string(), workspace_id.to_string());
-        update_query.workspace_id = Set(workspace_id.clone());
+
+    // Handle "timestamp"
+    if body_keys.contains(&"timestamp".to_string()) {
+        if let Some(Value::String(timestamp)) = body.get("timestamp") {
+            if let Ok(parsed_timestamp) = timestamp.parse::<DateTime<FixedOffset>>() {
+                if audittrail.timestamp != parsed_timestamp {
+                    update_query.timestamp = Set(parsed_timestamp);
+                    changes.insert("timestamp".to_string(), timestamp.clone());
+                }
+            }
+        }
     }
-    let sub_resource_id=body.sub_resource_id.clone();        
-    if audittrail.sub_resource_id!= sub_resource_id {
-        changes.insert("sub_resource_id".to_string(), sub_resource_id.to_string());
-        update_query.sub_resource_id = Set(sub_resource_id.clone());
+
+    // Handle "workspace_id"
+    if body_keys.contains(&"workspace_id".to_string()) {
+        if let Some(Value::Number(workspace_id)) = body.get("workspace_id") {
+            if let Some(workspace_id_i32) = workspace_id.as_i64() {
+                if audittrail.workspace_id != workspace_id_i32 as i32 {
+                    update_query.workspace_id = Set(workspace_id_i32 as i32);
+                    changes.insert("workspace_id".to_string(), workspace_id_i32.to_string());
+                }
+            }
+        }
     }
-    let resource_id=body.resource_id.clone();        
-    if audittrail.resource_id!= resource_id {
-        changes.insert("resource_id".to_string(), resource_id.to_string());
-        update_query.resource_id = Set(resource_id.clone());
+
+    // Handle "sub_resource_id"
+    if body_keys.contains(&"sub_resource_id".to_string()) {
+        if let Some(Value::Number(sub_resource_id)) = body.get("sub_resource_id") {
+            if let Some(sub_resource_id_i32) = sub_resource_id.as_i64() {
+                if audittrail.sub_resource_id != sub_resource_id_i32 as i32 {
+                    update_query.sub_resource_id = Set(sub_resource_id_i32 as i32);
+                    changes.insert("sub_resource_id".to_string(), sub_resource_id_i32.to_string());
+                }
+            }
+        }
     }
+
+    // Handle "resource_id"
+    if body_keys.contains(&"resource_id".to_string()) {
+        if let Some(Value::Number(resource_id)) = body.get("resource_id") {
+            if let Some(resource_id_i32) = resource_id.as_i64() {
+                if audittrail.resource_id != resource_id_i32 as i32 {
+                    update_query.resource_id = Set(resource_id_i32 as i32);
+                    changes.insert("resource_id".to_string(), resource_id_i32.to_string());
+                }
+            }
+        }
+    }
+
+    // Return the changes map and updated ActiveModel
     (changes, update_query)
 }
 

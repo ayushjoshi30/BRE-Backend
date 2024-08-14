@@ -1,7 +1,11 @@
 use std::sync::Arc;
+
+use serde_json::Value as Json;
+use chrono::NaiveDateTime;
 use entity::g_releases as releases;
 use std::collections::HashMap;
 use serde_json::json;
+use serde_json::{Value, Map};
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
 use warp::{reject, reply::Reply};
 use crate::error::Error::*;
@@ -49,7 +53,7 @@ pub async fn read_release_handler(id: i32, _:String, db_pool: Arc<DatabaseConnec
     Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn update_release_handler(id:i32,_:String,body: releases::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+pub async fn update_release_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let release = ReleaseEntity::find().filter(releases::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
     
     let release = release.ok_or(reject::custom(ResourceNotFound))?;
@@ -86,58 +90,117 @@ pub async fn read_all_release_handler(_:String, db_pool: Arc<DatabaseConnection>
     }
 }
 
-fn update_map_releases(release: releases::Model, body: releases::Model, id: i32) -> (HashMap<String, String>, releases::ActiveModel) {
-    let mut update_query = releases::ActiveModel {
-        id: Set(id),
-        ..Default::default() // Start with default values
-    };
+fn get_keys(value: &Value) -> Vec<String> {
+    let mut keys = Vec::new();
+    if let Value::Object(map) = value {
+        for (key, val) in map {
+            keys.push(key.clone());
+            keys.extend(get_keys(val)); // Recursively get keys
+        }
+    }
+    keys
+}
 
+fn update_map_releases(
+    release: releases::Model,
+    body: HashMap<String, Value>,
+    id: i32,
+) -> (HashMap<String, String>, releases::ActiveModel) {
     let mut changes = HashMap::new();
 
-    let version = body.version.clone();
-    if !version.is_empty() {
-        update_query.version = Set(version.clone());
-        if release.version != version {
-            changes.insert("version".to_string(), version);
-        }
-    }
-    // Handle `file_path`
-    let file_path = body.file_path.clone();
-    if !file_path.is_empty() {
-        update_query.file_path = Set(file_path.clone());
-        if release.file_path != file_path {
-            changes.insert("file_path".to_string(), file_path);
-        }
-    }
-    let file_json= body.file_json.clone();
-    println!("{:?}",file_json);
-    println!("{:?}",release.file_json);
+    // Convert HashMap to Map
+    let map_body: Map<String, Value> = body.clone().into_iter().collect();
 
-    if release.file_json!= file_json {
-        update_query.file_json = Set(file_json.clone());
-        changes.insert("file_json".to_string(), file_json.to_string());
+    // Get keys from the body
+    let body_keys = get_keys(&Value::Object(map_body));
+
+    // Initialize an ActiveModel to apply updates
+    let mut update_query = releases::ActiveModel {
+        id: Set(id),
+        ..Default::default()
+    };
+
+    // Handle "version"
+    if body_keys.contains(&"version".to_string()) {
+        if let Some(Value::String(version)) = body.get("version") {
+            if release.version != *version {
+                update_query.version = Set(version.clone());
+                changes.insert("version".to_string(), version.clone());
+            }
+        }
     }
-    let created_at=body.created_at.clone();
-    if release.created_at!= created_at {
-        update_query.created_at = Set(created_at.clone());
-        changes.insert("created_at".to_string(), created_at.to_string());
+
+    // Handle "file_path"
+    if body_keys.contains(&"file_path".to_string()) {
+        if let Some(Value::String(file_path)) = body.get("file_path") {
+            if release.file_path != *file_path {
+                update_query.file_path = Set(file_path.clone());
+                changes.insert("file_path".to_string(), file_path.clone());
+            }
+        }
     }
-    let is_released=body.is_released.clone();
-    if release.is_released!= is_released {
-        update_query.is_released = Set(is_released.clone());
-        changes.insert("is_released".to_string(), is_released.to_string());
+
+    // Handle "file_json"
+    if body_keys.contains(&"file_json".to_string()) {
+        if let Some(Value::Object(file_json)) = body.get("file_json") {
+            let file_json_string = serde_json::to_string(file_json).unwrap_or_default();
+            let file_json_value: Json = serde_json::from_str(&file_json_string).unwrap_or_default();
+            if release.file_json != file_json_value {
+                update_query.file_json = Set(file_json_value);
+                changes.insert("file_json".to_string(), file_json_string);
+            }
+        }
     }
-    
-    let released_date=body.released_date.clone();
-    if release.released_date!= released_date {
-        changes.insert("user_id".to_string(), released_date.to_string());
-        update_query.released_date = Set(release.released_date.clone());
+
+    // Handle "created_at"
+    if body_keys.contains(&"created_at".to_string()) {
+        if let Some(Value::String(created_at)) = body.get("created_at") {
+            if let Ok(parsed_date) = created_at.parse::<NaiveDateTime>() {
+                if release.created_at != parsed_date {
+                    update_query.created_at = Set(parsed_date);
+                    changes.insert("created_at".to_string(), created_at.clone());
+                }
+            }
+        }
     }
-    let created_by_user=body.created_by_user.clone();      
-    if created_by_user != 0 && release.created_by_user != created_by_user {
-        changes.insert("created_by_user".to_string(), created_by_user.to_string());
-        update_query.created_by_user = Set(created_by_user);
+
+    // Handle "is_released"
+    if body_keys.contains(&"is_released".to_string()) {
+        if let Some(Value::Bool(is_released)) = body.get("is_released") {
+            if release.is_released != *is_released {
+                update_query.is_released = Set(*is_released);
+                changes.insert("is_released".to_string(), is_released.to_string());
+            }
+        }
     }
+
+    // Handle "released_date"
+    if body_keys.contains(&"released_date".to_string()) {
+        if let Some(Value::String(released_date)) = body.get("released_date") {
+            if let Ok(parsed_date) = released_date.parse::<NaiveDateTime>() {
+                if release.released_date != parsed_date {
+                    update_query.released_date = Set(parsed_date);
+                    changes.insert("released_date".to_string(), released_date.clone());
+                }
+            }
+        }
+    }
+
+    // Handle "created_by_user"
+    if body_keys.contains(&"created_by_user".to_string()) {
+        if let Some(Value::Number(created_by_user)) = body.get("created_by_user") {
+            if let Some(created_by_user_i32) = created_by_user.as_i64() {
+                if release.created_by_user != created_by_user_i32 as i32 {
+                    update_query.created_by_user = Set(created_by_user_i32 as i32);
+                    changes.insert("created_by_user".to_string(), created_by_user_i32.to_string());
+                }
+            }
+        }
+    }
+
+    // Return the changes map and updated ActiveModel
     (changes, update_query)
 }
+
+
 

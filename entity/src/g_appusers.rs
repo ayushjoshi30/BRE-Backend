@@ -4,36 +4,33 @@ use sea_orm::entity::prelude::*;
 
 use serde::{Deserialize, Serialize};
 use chrono::NaiveDateTime;
+fn default_is_active() -> bool {
+    true
+}
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "g_appusers")]
+
 pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
-    #[serde(default)]
     pub first_name: String,
-    #[serde(default)]
     pub last_name: String,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub user_name: String,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub email: String,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub mobile_no: String,
     #[serde(default = "current_time")]
     pub created_on_date: DateTime,
-    #[serde(default)]
     pub workspace_id: i32,
-    #[serde(default)]
+    #[serde(default="default_is_active")]
     pub is_active: bool,
     #[serde(default)]
     pub is_deleted: bool,
     #[serde(default = "current_time")]
     pub last_login: DateTime,
-    #[serde(default)]
     pub password: String,
     #[serde(default)]
     pub is_admin: bool,

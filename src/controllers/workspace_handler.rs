@@ -2,6 +2,7 @@ use std::sync::Arc;
 use entity::g_workspaces as workspaces;
 use std::collections::HashMap;
 use serde_json::json;
+use serde_json::{Value, Map};
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
 use warp::{reject, reply::Reply};
 use crate::error::Error::*;
@@ -49,7 +50,7 @@ pub async fn read_workspace_handler(id: i32, _:String, db_pool: Arc<DatabaseConn
     Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn update_workspace_handler(id:i32,_:String,body: workspaces::Model,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+pub async fn update_workspace_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let workspace = WorkspaceEntity::find().filter(workspaces::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
     
     let workspace = workspace.ok_or(reject::custom(ResourceNotFound))?;
@@ -88,65 +89,106 @@ pub async fn read_all_workspaces_handler(_:String, db_pool: Arc<DatabaseConnecti
     }
 }
 
-fn update_map_workspaces(workspace: workspaces::Model, body: workspaces::Model, id: i32) -> (HashMap<String, String>, workspaces::ActiveModel) {
-    let mut update_query = workspaces::ActiveModel {
-        id: Set(id),
-        ..Default::default() // Start with default values
-    };
-
+fn update_map_workspaces(
+    workspace: workspaces::Model,
+    body: HashMap<String, Value>,
+    id: i32,
+) -> (HashMap<String, String>, workspaces::ActiveModel) {
     let mut changes = HashMap::new();
 
-    let identifier = body.identifier.clone();
-    if !identifier.is_empty() {
-        update_query.identifier = Set(identifier.clone());
-        if workspace.identifier != identifier {
-            changes.insert("identifier".to_string(), identifier);
-        }
-    }
-    // Handle `base_url`
-    let base_url = body.base_url.clone();
-    if !base_url.is_empty() {
-        update_query.base_url = Set(base_url.clone());
-        if workspace.base_url != base_url {
-            changes.insert("base_url".to_string(), base_url);
-        }
-    }
-    let organisation_name = body.organisation_name.clone();
-    if !organisation_name.is_empty() {
-        update_query.organisation_name = Set(organisation_name.clone());
-        if workspace.organisation_name != organisation_name {
-            changes.insert("organisation_name".to_string(), organisation_name);
-        }
-    }
-    let organisation_address = body.organisation_address.clone();
-    if !organisation_address.is_empty() {
-        update_query.organisation_address = Set(organisation_address.clone());
-        if workspace.organisation_address!= organisation_address {
-            changes.insert("organisation_address".to_string(), organisation_address);
-        }
-    }
-    let organisation_email= body.organisation_email.clone();
-    if!organisation_email.is_empty() {
-        update_query.organisation_email = Set(organisation_email.clone());
-        if workspace.organisation_email!= organisation_email {
-            changes.insert("organisation_email".to_string(), organisation_email);
-        }
-    }
-    let auth_key=body.auth_key.clone();
-    if!auth_key.is_empty() {
-        update_query.auth_key = Set(auth_key.clone());
-        if workspace.auth_key!= auth_key {
-            changes.insert("auth_key".to_string(), auth_key);
-        }
-    }
-    let organization_logo=body.organization_logo.clone();
-    if!organization_logo.is_empty() {
-        update_query.organization_logo = Set(organization_logo.clone());
-        if workspace.organization_logo!= organization_logo {
-            changes.insert("organization_logo".to_string(), organization_logo);
+    // Convert HashMap to Map
+    let map_body: Map<String, Value> = body.clone().into_iter().collect();
+
+    // Get keys from the body
+    let body_keys = get_keys(&Value::Object(map_body));
+
+    // Initialize an ActiveModel to apply updates
+    let mut update_query = workspaces::ActiveModel {
+        id: Set(id),
+        ..Default::default()
+    };
+
+    // Handle "identifier"
+    if body_keys.contains(&"identifier".to_string()) {
+        if let Some(Value::String(identifier)) = body.get("identifier") {
+            if workspace.identifier != *identifier {
+                update_query.identifier = Set(identifier.clone());
+                changes.insert("identifier".to_string(), identifier.clone());
+            }
         }
     }
 
+    // Handle "base_url"
+    if body_keys.contains(&"base_url".to_string()) {
+        if let Some(Value::String(base_url)) = body.get("base_url") {
+            if workspace.base_url != *base_url {
+                update_query.base_url = Set(base_url.clone());
+                changes.insert("base_url".to_string(), base_url.clone());
+            }
+        }
+    }
+
+    // Handle "organisation_name"
+    if body_keys.contains(&"organisation_name".to_string()) {
+        if let Some(Value::String(organisation_name)) = body.get("organisation_name") {
+            if workspace.organisation_name != *organisation_name {
+                update_query.organisation_name = Set(organisation_name.clone());
+                changes.insert("organisation_name".to_string(), organisation_name.clone());
+            }
+        }
+    }
+
+    // Handle "organisation_address"
+    if body_keys.contains(&"organisation_address".to_string()) {
+        if let Some(Value::String(organisation_address)) = body.get("organisation_address") {
+            if workspace.organisation_address != *organisation_address {
+                update_query.organisation_address = Set(organisation_address.clone());
+                changes.insert("organisation_address".to_string(), organisation_address.clone());
+            }
+        }
+    }
+
+    // Handle "organisation_email"
+    if body_keys.contains(&"organisation_email".to_string()) {
+        if let Some(Value::String(organisation_email)) = body.get("organisation_email") {
+            if workspace.organisation_email != *organisation_email {
+                update_query.organisation_email = Set(organisation_email.clone());
+                changes.insert("organisation_email".to_string(), organisation_email.clone());
+            }
+        }
+    }
+
+    // Handle "auth_key"
+    if body_keys.contains(&"auth_key".to_string()) {
+        if let Some(Value::String(auth_key)) = body.get("auth_key") {
+            if workspace.auth_key != *auth_key {
+                update_query.auth_key = Set(auth_key.clone());
+                changes.insert("auth_key".to_string(), auth_key.clone());
+            }
+        }
+    }
+
+    // Handle "organization_logo"
+    if body_keys.contains(&"organization_logo".to_string()) {
+        if let Some(Value::String(organization_logo)) = body.get("organization_logo") {
+            if workspace.organization_logo != *organization_logo {
+                update_query.organization_logo = Set(organization_logo.clone());
+                changes.insert("organization_logo".to_string(), organization_logo.clone());
+            }
+        }
+    }
+
+    // Return the changes map and updated ActiveModel
     (changes, update_query)
+}
+fn get_keys(value: &Value) -> Vec<String> {
+    let mut keys = Vec::new();
+    if let Value::Object(map) = value {
+        for (key, val) in map {
+            keys.push(key.clone());
+            keys.extend(get_keys(val)); // Recursively get keys
+        }
+    }
+    keys
 }
 

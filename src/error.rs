@@ -25,8 +25,6 @@ pub enum Error {
     ResourceNotFound,
     #[error("Unable to parse token")]
     ParseTokenError,
-    #[error("Invalid Username")]
-    UsernotfoundError,
 }
 
 #[derive(Serialize, Debug)]
@@ -51,7 +49,6 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
             Error::NoAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::InvalidAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::ParseTokenError => (StatusCode::UNAUTHORIZED, e.to_string()),
-            Error::UsernotfoundError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::JWTTokenCreationError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),

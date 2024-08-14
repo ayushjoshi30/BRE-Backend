@@ -10,16 +10,13 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub identifier: String,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub organisation_name: String,
     #[sea_orm(column_type = "Text")]
     #[serde(default)]
     pub organisation_address: String,
     #[sea_orm(unique)]
-    #[serde(default)]
     pub organisation_email: String,
     #[serde(default)]
     pub auth_key: String,

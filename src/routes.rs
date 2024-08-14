@@ -7,6 +7,7 @@ use crate::controllers::rule_handler::*;
 use crate::controllers::workspace_handler::*;
 use crate::controllers::audittrail_handler::*;
 use crate::controllers::release_handler::*;
+use crate::controllers::configure_handler::*;
 use crate::auth::auth::with_auth;
 
 // A function to build our routes
@@ -54,12 +55,21 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
                 .or(update_audittrail(db_pool.clone()))
                 .or(delete_audittrail(db_pool.clone()))
         );
+    let configure_routes = warp::path("configure")
+        .and(
+            create_configure(db_pool.clone())
+                .or(read_configure(db_pool.clone()))
+                .or(read_all_configures(db_pool.clone()))
+                .or(update_configure(db_pool.clone()))
+                .or(delete_configure(db_pool.clone()))
+        );
     login_route(db_pool.clone())
         .or(user_routes)
         .or(workspace_routes)
         .or(rule_routes)
         .or(release_routes)
         .or(audittrail_routes)
+        .or(configure_routes)
 }
 
 // A Route to handle login
@@ -221,7 +231,7 @@ pub fn update_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = 
        .and_then(update_release_handler)
 }
 pub fn delete_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_relese" / i32)
+    warp::path!("delete_release" / i32)
        .and(warp::delete())
        .and(with_auth())
        .and(with_pool(db_pool))
@@ -250,7 +260,7 @@ pub fn read_all_audittrails(db_pool : Arc<DatabaseConnection>)->impl Filter<Extr
        .and_then(read_all_audittrail_handler)
 }
 pub fn update_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_rule" / i32)
+    warp::path!("update_audittrail" / i32)
        .and(warp::put())
        .and(with_auth())
        .and(warp::body::json())
@@ -258,11 +268,48 @@ pub fn update_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract
        .and_then(update_audittrail_handler)
 }
 pub fn delete_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_relese" / i32)
+    warp::path!("delete_audittrail" / i32)
        .and(warp::delete())
        .and(with_auth())
        .and(with_pool(db_pool))
        .and_then(delete_audittrail_handler)
+}
+pub fn create_configure(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("create_configure")
+        .and(warp::post())
+        .and(with_auth())
+        .and(warp::body::json())
+        .and(with_pool(db_pool))
+        .and_then(create_configure_handler)
+}
+pub fn read_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_configure"/i32)
+        .and(warp::get())
+        .and(with_auth())
+        .and(with_pool(db_pool))
+        .and_then(read_configure_handler)
+}
+pub fn read_all_configures(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_all_configures")
+       .and(warp::get())
+       .and(with_auth())
+       .and(with_pool(db_pool))
+       .and_then(read_all_configure_handler)
+}
+pub fn update_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("update_configure" / i32)
+       .and(warp::put())
+       .and(with_auth())
+       .and(warp::body::json())
+       .and(with_pool(db_pool))
+       .and_then(update_configure_handler)
+}
+pub fn delete_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("delete_configure" / i32)
+       .and(warp::delete())
+       .and(with_auth())
+       .and(with_pool(db_pool))
+       .and_then(delete_configure_handler)
 }
 fn with_pool(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = (Arc<DatabaseConnection>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db_pool.clone())

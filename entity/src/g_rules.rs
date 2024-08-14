@@ -8,23 +8,17 @@ pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
-    #[serde(default)]
     pub workspace_id: i32,
-    #[serde(default)]
     pub rule_path: String,
     #[sea_orm(column_type = "JsonBinary")]
-    #[serde(default)]
     pub rule_json: Json,
-    #[serde(default)]
     pub created_by_user: i32,
-    #[serde(default)]
     pub last_updated: DateTime,
     #[serde(default)]
     pub draft_file_path: String,
     #[sea_orm(column_type = "JsonBinary")]
     #[serde(default)]
     pub draft_file_json: Json,
-    #[serde(default)]
     pub is_draft: bool,
     #[serde(default)]
     pub published_at: DateTime,

@@ -12,6 +12,7 @@ mod controllers {
     pub mod rule_handler;
     pub mod release_handler;
     pub mod audittrail_handler;
+    pub mod configure_handler;
 }
 mod routes;
 // mod util;

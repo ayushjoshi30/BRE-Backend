@@ -8,20 +8,15 @@ pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
-    #[serde(default)]
     pub version: String,
-    #[serde(default)]
     pub file_path: String,
     #[sea_orm(column_type = "JsonBinary")]
-    #[serde(default)]
     pub file_json: Json,
-    #[serde(default)]
     pub created_at: DateTime,
     #[serde(default)]
     pub is_released: bool,
     #[serde(default)]
     pub released_date: DateTime,
-    #[serde(default)]
     pub created_by_user: i32,
 }
 
