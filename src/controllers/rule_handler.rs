@@ -3,45 +3,115 @@ use entity::g_rules as rules;
 use serde_json::json;
 use chrono::NaiveDateTime; // For DateTime handling
 use serde_json::{Map, Value};
+use warp::reject::Rejection;
 use std::collections::HashMap;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait};
-use warp::{reject, reply::Reply};
+use warp::{http::StatusCode,reject, reply::Reply,hyper::body::to_bytes};
+use crate::controllers::workspace_handler::*;
 use crate::error::Error::*;
 use crate::WebResult;
+use crate::models::workspace_model::WorkspaceResponse;
+use entity::g_workspaces as workspaces;
+use entity::g_workspaces::Entity as WorkspaceEntity;
+use entity::g_appusers as users;
 use entity::g_rules::Entity as RuleEntity;
+use entity::g_appusers::Entity as UserEntity;
+use crate::models::rules_model::RuleResponse;
+pub async fn create_rule_handler(username: String, body: rules::Model, db_pool: Arc<DatabaseConnection>) -> Result<impl Reply, Rejection> {
+    // Query to get the user
+    let user_result = UserEntity::find()
+        .filter(users::Column::UserName.eq(username.clone()))
+        .one(&*db_pool)
+        .await;
 
-pub async fn create_rule_handler(authenticated: String ,body: rules::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
-    
-    print!("Request Authenticated: {}", authenticated);
+    // Extract the user ID
+    let user_id = match user_result {
+        Ok(Some(user)) => user.id,
+        Ok(None) => return Err(reject::not_found()), // User not found
+        Err(_) => return Err(reject::custom(InvalidRequestBodyError)), // Database error
+    };
+
+    // Query to get workspace details
+    let result = read_workspace_handler(username.clone(), db_pool.clone()).await;
+
+    // Extract the response body from the Warp reply
+    let response_body = match result {
+        Ok(reply) => {
+            let bytes = warp::hyper::body::to_bytes(reply.into_response().into_body()).await.unwrap_or_default();
+            String::from_utf8(bytes.to_vec()).unwrap_or_default()
+        },
+        Err(_) => return Err(reject::not_found()), // Handle errors appropriately
+    };
+
+    // Deserialize the response into WorkspaceResponse
+    let workspace_response: WorkspaceResponse = serde_json::from_str(&response_body).unwrap_or_else(|_| {
+        // Handle deserialization errors appropriately
+        eprintln!("Failed to deserialize response");
+        WorkspaceResponse { id: -1, name: "Unknown".to_string() }
+    });
+    let workspace_id = workspace_response.id;
+
+    // Create the rule
     let rule = rules::ActiveModel {
-        workspace_id: Set(body.workspace_id),
+        workspace_id: Set(workspace_id),
         rule_path: Set(body.rule_path),
-        rule_json:Set(body.rule_json),
-        created_by_user: Set(body.created_by_user),
+        rule_json: Set(body.rule_json),
+        created_by_user: Set(user_id), // Use the user_id from the query
         last_updated: Set(body.last_updated),
         draft_file_path: Set(body.draft_file_path),
-        draft_file_json:Set(body.draft_file_json),
+        draft_file_json: Set(body.draft_file_json),
         is_draft: Set(body.is_draft),
         published_at: Set(body.published_at),
         version: Set(body.version),
         ..Default::default()
     };
 
-    let rule: rules::Model = rule.insert(&*db_pool).await.map_err(|e| {
+    // Insert the rule into the database
+    let inserted_rule = rule.insert(&*db_pool).await.map_err(|e| {
         eprintln!("Failed to insert rule: {:?}", e);
         reject::custom(InvalidRequestBodyError)
     })?;
 
-    Ok(warp::reply::json(&rule))
+    Ok(warp::reply::json(&inserted_rule))
 }
-pub async fn read_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await {
-        // If the rule is empty, return a 404
-        Ok(Some(rule)) => Ok(warp::reply::json(&rule)),
-        Ok(None) => Err(reject::custom(ResourceNotFound)),
 
-        Err(_) => Err(reject::custom(DatabaseError)),
-    }
+pub async fn read_rule_handler(username: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    // Call the read_workspace_handler and await its result
+    let result = read_workspace_handler(username.clone(), db_pool.clone()).await;
+    // Extract the response body from the Warp reply
+    let response_body = match result {
+        Ok(reply) => {
+            let bytes = to_bytes(reply.into_response().into_body()).await.unwrap_or_default();
+            String::from_utf8(bytes.to_vec()).unwrap_or_default()
+        },
+        Err(_) => return Err(warp::reject::not_found()), // Handle errors appropriately
+    };
+    // Deserialize the response into WorkspaceResponse
+    let workspace_response: WorkspaceResponse = serde_json::from_str(&response_body).unwrap_or_else(|_| {
+        // Handle deserialization errors appropriately
+        eprintln!("Failed to deserialize response");
+        WorkspaceResponse { id: -1, name: "Unknown".to_string() }
+    });
+    let workspace_id = workspace_response.id;
+    let query = WorkspaceEntity::find()
+            .filter(workspaces::Column::Id.eq(workspace_id))
+            .find_also_related(RuleEntity)
+            .all(&*db_pool)
+            .await
+            .map_err(|_| warp::reject::not_found())?;
+    let mut rules=Vec::new();
+    for (_,related_rules) in query{
+        if let Some(rule) = related_rules {
+            rules.push(RuleResponse {
+                id: rule.id,
+                rulejson: rule.rule_json.to_string(), // Adjust according to your field name
+            });
+        }
+        }   
+    let response = serde_json::to_string(&rules).unwrap_or_else(|_| "[]".to_string());
+    // Now you can use the workspace_id to fetch related rules or perform other actions
+    // For now, let's just return it as a simple example response
+    Ok(warp::reply::with_status(response, StatusCode::OK))
 }
 pub async fn read_all_rule_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     match RuleEntity::find().all(&*db_pool).await {

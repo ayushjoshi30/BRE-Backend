@@ -92,7 +92,7 @@ pub fn create_workspace(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extrac
 }
 // A Route to handle user
 pub fn read_workspace(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_workspace"/i32)
+    warp::path!("read_workspace")
         .and(warp::get())
         .and(with_auth())
         .and(with_pool(db_pool))
@@ -172,7 +172,7 @@ pub fn create_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = imp
        .and_then(create_rule_handler)
 }
 pub fn read_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_rule"/i32)
+    warp::path!("read_rule")
         .and(warp::get())
         .and(with_auth())
         .and(with_pool(db_pool))

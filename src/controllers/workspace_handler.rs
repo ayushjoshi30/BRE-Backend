@@ -4,10 +4,13 @@ use std::collections::HashMap;
 use serde_json::json;
 use serde_json::{Value, Map};
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
-use warp::{reject, reply::Reply};
+use warp::{http::StatusCode,reject, reply::Reply};
 use crate::error::Error::*;
 use crate::WebResult;
+use entity::g_appusers::Entity as UserEntity;
+use entity::g_appusers as users;
 use entity::g_workspaces::Entity as WorkspaceEntity;
+use crate::models::workspace_model::WorkspaceResponse;
 pub async fn create_workspace_handler(authenticated: String ,body: workspaces::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
 
     print!("Request Authenticated: {}", authenticated);
@@ -34,21 +37,28 @@ pub async fn create_workspace_handler(authenticated: String ,body: workspaces::M
     Ok(warp::reply::json(&workspace))
 }
 
-pub async fn read_workspace_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match WorkspaceEntity::find()
-    .filter(workspaces::Column::Id.eq(id))
-    .one(&*db_pool)
-    .await
-    {
-    // If the workspace is found, return it as JSON
-    Ok(Some(workspace)) => Ok(warp::reply::json(&workspace)),
-
-    // If the workspace is not found, return a 404 error
-    Ok(None) => Err(reject::custom(ResourceNotFound)),
-
-    // If there is a database error, return a generic database error
-    Err(_) => Err(reject::custom(DatabaseError)),
-    }
+pub async fn read_workspace_handler( username:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    // println!("{}", username);
+        let query = UserEntity::find()
+            .filter(users::Column::UserName.eq(username))
+            .find_also_related(WorkspaceEntity)
+            .all(&*db_pool)
+            .await
+            .map_err(|_| warp::reject::not_found())?;
+        // println!("{:?}", query);
+        // Extract rules from the joined results
+        let mut workspaces = Vec::new();
+        for (_, related_workspaces) in query {
+            // Iterate over related workspaces and collect their details
+            if let Some(workspace) = related_workspaces {
+                workspaces.push(WorkspaceResponse {
+                    id: workspace.id,
+                    name: workspace.identifier, // Adjust according to your field name
+                });
+            }
+        }
+    let response = serde_json::to_string(&workspaces[0]).unwrap_or_else(|_| "[]".to_string());
+    Ok(warp::reply::with_status(response, StatusCode::OK))
 }
 pub async fn update_workspace_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let workspace = WorkspaceEntity::find().filter(workspaces::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;

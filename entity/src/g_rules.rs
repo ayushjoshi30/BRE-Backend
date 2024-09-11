@@ -2,25 +2,30 @@
 
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use chrono::NaiveDateTime;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel,Serialize,Deserialize, Eq)]
 #[sea_orm(table_name = "g_rules")]
 pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
+    #[serde(default)]
     pub workspace_id: i32,
     pub rule_path: String,
     #[sea_orm(column_type = "JsonBinary")]
     pub rule_json: Json,
+    #[serde(default)]
     pub created_by_user: i32,
+    #[serde(default = "current_time")]
     pub last_updated: DateTime,
     #[serde(default)]
     pub draft_file_path: String,
     #[sea_orm(column_type = "JsonBinary")]
     #[serde(default)]
     pub draft_file_json: Json,
-    pub is_draft: bool,
     #[serde(default)]
+    pub is_draft: bool,
+    #[serde(default = "current_time")]
     pub published_at: DateTime,
     #[serde(default)]
     pub version: String,
@@ -47,7 +52,9 @@ pub enum Relation {
     )]
     GWorkspaces,
 }
-
+fn current_time() -> NaiveDateTime {
+    chrono::Utc::now().naive_utc()
+}
 impl Related<super::g_appusers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::GAppusers.def()
