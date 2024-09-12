@@ -2,6 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use chrono::NaiveDateTime;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel,Serialize,Deserialize, Eq)]
 #[sea_orm(table_name = "g_releases")]
 pub struct Model {
@@ -9,14 +10,20 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     pub version: String,
+    #[serde(default)]
+    pub workspace_id:i32,
+    #[serde(default)]
     pub file_path: String,
     #[sea_orm(column_type = "JsonBinary")]
+    #[serde(default)]
     pub file_json: Json,
+    #[serde(default = "current_time")]
     pub created_at: DateTime,
     #[serde(default)]
     pub is_released: bool,
     #[serde(default)]
     pub released_date: DateTime,
+    #[serde(default)]
     pub created_by_user: i32,
 }
 
@@ -30,12 +37,26 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     GAppusers,
+    #[sea_orm(
+        belongs_to = "super::g_workspaces::Entity",  
+        from = "Column::WorkspaceId",
+        to = "super::g_workspaces::Column::Id",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    GWorkspaces,
 }
-
+fn current_time() -> NaiveDateTime {
+    chrono::Utc::now().naive_utc()
+}
 impl Related<super::g_appusers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::GAppusers.def()
     }
 }
-
+impl Related<super::g_workspaces::Entity> for Entity {  // Added relation implementation for GRules
+    fn to() -> RelationDef {
+        Relation::GWorkspaces.def()
+    }
+}
 impl ActiveModelBehavior for ActiveModel {}

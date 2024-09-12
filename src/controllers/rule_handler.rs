@@ -75,8 +75,17 @@ pub async fn create_rule_handler(username: String, body: rules::Model, db_pool: 
     Ok(warp::reply::json(&inserted_rule))
 }
 
-pub async fn read_rule_handler(username: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+pub async fn read_rule_handler(id:i32,_: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     // Call the read_workspace_handler and await its result
+    match RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await {
+        // If the user is empty, return a 404
+        Ok(Some(rule)) => Ok(warp::reply::json(&rule)),
+        Ok(None) => Err(reject::custom(ResourceNotFound)),
+
+        Err(_) => Err(reject::custom(DatabaseError)),
+    }
+}
+pub async fn read_all_rule_handler(username:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let result = read_workspace_handler(username.clone(), db_pool.clone()).await;
     // Extract the response body from the Warp reply
     let response_body = match result {
@@ -113,17 +122,11 @@ pub async fn read_rule_handler(username: String, db_pool: Arc<DatabaseConnection
     // For now, let's just return it as a simple example response
     Ok(warp::reply::with_status(response, StatusCode::OK))
 }
-pub async fn read_all_rule_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match RuleEntity::find().all(&*db_pool).await {
-        // If the rule is empty, return a 404
-        Ok(rule) => Ok(warp::reply::json(&rule)),
-        Err(_) => Err(reject::custom(DatabaseError)),
-    }
-}
 pub async fn update_rule_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
     let rule = rule.ok_or(reject::custom(ResourceNotFound))?;
     let (changes, rule_model)  = update_map_rules(rule.clone(), body.clone(), id);
+    // println!("{:?}",rule_model);
     let updated_rule = rule_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
     // Construct a response with the changes made
     let response = json!({
@@ -200,12 +203,11 @@ fn update_map_rules(
 
     // Handle "rule_json"
     if body_keys.contains(&"rule_json".to_string()) {
-        if let Some(Value::Object(rule_json)) = body.get("rule_json") {
-            let rule_json = serde_json::to_value(rule_json).unwrap(); // Convert back to Value
-            if rule.rule_json != rule_json {
-                update_query.rule_json = Set(rule_json.clone());
-                changes.insert("rule_json".to_string(), rule_json.to_string());
-            }
+        let rule_json = body.get("rule_json"); 
+        let rule_json = serde_json::to_value(rule_json).unwrap(); // Convert back to Value
+        if rule.rule_json != rule_json {
+            update_query.rule_json = Set(rule_json.clone());
+            changes.insert("rule_json".to_string(), rule_json.to_string());
         }
     }
 
@@ -246,12 +248,15 @@ fn update_map_rules(
 
     // Handle "draft_file_json"
     if body_keys.contains(&"draft_file_json".to_string()) {
-        if let Some(Value::Object(draft_file_json)) = body.get("draft_file_json") {
-            let draft_file_json = serde_json::to_value(draft_file_json).unwrap(); // Convert back to Value
-            if rule.draft_file_json != draft_file_json {
-                update_query.draft_file_json = Set(draft_file_json.clone());
-                changes.insert("draft_file_json".to_string(), draft_file_json.to_string());
-            }
+        let draft_file_json = body.get("draft_file_json"); 
+        let draft_file_json = serde_json::to_value(draft_file_json).unwrap(); // Convert back to Value
+        if rule.draft_file_json != draft_file_json {
+            update_query.draft_file_json = Set(draft_file_json.clone());
+            update_query.draft_file_path = Set(format!("S3path/bucketname/{}", draft_file_json.to_string()));
+            update_query.is_draft = Set(true);
+            changes.insert("is_draft".to_string(), "True".to_string());
+            changes.insert("draft_file_json".to_string(), draft_file_json.to_string());
+            changes.insert("draft_file_path".to_string(), format!("S3path/bucketname/{}", draft_file_json));
         }
     }
 
@@ -301,3 +306,15 @@ fn get_keys(value: &Value) -> Vec<String> {
     keys
 }
 
+pub async fn read_draft(id:i32,_: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    match RuleEntity::find()
+        .filter(rules::Column::Id.eq(id))
+        .filter(rules::Column::IsDraft.eq(true))
+        .one(&*db_pool)
+        .await
+        {
+            Ok(Some(rule)) => Ok(warp::reply::json(&rule.draft_file_json)),
+            Ok(None) => Err(reject::not_found()), // Rejected as NotFound
+            Err(_) => Err(reject::custom(DatabaseError)), // Custom rejection for DB errors
+        }
+}

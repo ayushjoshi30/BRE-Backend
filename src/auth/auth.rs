@@ -66,7 +66,7 @@ async fn authorize( headers:  HeaderMap<HeaderValue>) -> WebResult<String> {
     }
 }
 
-fn jwt_from_header(headers: &HeaderMap<HeaderValue>) -> Result<String> {
+pub fn jwt_from_header(headers: &HeaderMap<HeaderValue>) -> Result<String> {
     let header = match headers.get(AUTHORIZATION) {
         Some(v) => v,
         None => return Err(Error::NoAuthHeaderError),

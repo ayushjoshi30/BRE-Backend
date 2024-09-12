@@ -4,17 +4,20 @@ use std::collections::HashMap;
 use serde_json::json;
 use serde_json::{Value, Map};
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
-use warp::{http::StatusCode,reject, reply::Reply};
+use warp::{http::StatusCode,reject, reply::Reply,http::header::{HeaderMap, HeaderValue, }};
 use crate::error::Error::*;
 use crate::WebResult;
+use crate::auth::auth::jwt_from_header;
 use entity::g_appusers::Entity as UserEntity;
 use entity::g_appusers as users;
 use entity::g_workspaces::Entity as WorkspaceEntity;
 use crate::models::workspace_model::WorkspaceResponse;
-pub async fn create_workspace_handler(authenticated: String ,body: workspaces::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
-
-    print!("Request Authenticated: {}", authenticated);
-
+pub async fn create_workspace_handler(headers: HeaderMap<HeaderValue>,_: String ,body: workspaces::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+    let auth = match jwt_from_header(&headers) {
+        Ok(token) => token,
+        Err(_) => return Err(warp::reject::custom(InvalidAuthHeaderError)),
+    };
+    
     let workspace = workspaces::ActiveModel {
         identifier: Set(body.identifier),
         organisation_name: Set(body.organisation_name),
@@ -23,7 +26,7 @@ pub async fn create_workspace_handler(authenticated: String ,body: workspaces::M
         // Set the last login to the current time
 
         base_url: Set(body.base_url),
-        auth_key:Set(body.auth_key),
+        auth_key:Set(auth.to_string()),
         organization_logo: Set(body.organization_logo),
         // Set the last login to the current time
         ..Default::default()

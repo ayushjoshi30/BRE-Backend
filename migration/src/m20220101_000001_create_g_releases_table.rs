@@ -18,6 +18,13 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(GReleases::Id))
                     .col(string(GReleases::Version).not_null())
+                    .col(integer(GReleases::WorkspaceId).not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_workspace_id")
+                            .from(GReleases::Table, GReleases::WorkspaceId)
+                            .to(GWorkspaces::Table, GWorkspaces::Id),
+                    )
                     .col(string(GReleases::FilePath).not_null())
                     .col(json_binary(GReleases::FileJson).not_null())
                     .col(date_time(GReleases::CreatedAt).not_null().default(Expr::current_timestamp()))
@@ -47,6 +54,7 @@ enum GReleases {
     Table,
     Id,
     Version,
+    WorkspaceId,
     FilePath,
     FileJson,
     CreatedAt,
@@ -61,3 +69,8 @@ enum GAppusers {
     Id,
 }
 
+#[derive(DeriveIden)]
+enum GWorkspaces {
+    Table,
+    Id,
+}

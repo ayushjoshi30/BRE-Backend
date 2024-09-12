@@ -1,11 +1,16 @@
 mod auth {
     pub mod auth;
 }
+mod apiroutes{
+    pub mod user_route;
+    pub mod workspace_route;
+}
 mod error;
 mod models {
     pub mod login_model;
     pub mod workspace_model;
     pub mod rules_model;
+    pub mod release_model;
 }
 mod controllers {
     pub mod login_handler;

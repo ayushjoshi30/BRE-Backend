@@ -3,28 +3,44 @@ use std::sync::Arc;
 use serde_json::Value as Json;
 use chrono::NaiveDateTime;
 use entity::g_releases as releases;
+use crate::controllers::workspace_handler::*;
 use std::collections::HashMap;
 use serde_json::json;
+use crate::models::workspace_model::WorkspaceResponse;
 use serde_json::{Value, Map};
+use entity::g_workspaces as workspaces;
+use entity::g_workspaces::Entity as WorkspaceEntity;
 use sea_orm::{ ActiveModelTrait,DatabaseConnection, EntityTrait, QueryFilter,Set, ColumnTrait};
-use warp::{reject, reply::Reply};
+use warp::{http::StatusCode,reject, reply::Reply,hyper::body::to_bytes};
 use crate::error::Error::*;
 use crate::WebResult;
 use entity::g_releases::Entity as ReleaseEntity;
-pub async fn create_release_handler(authenticated: String ,body: releases::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+use crate::models::release_model::ReleaseResponse;
+use entity::g_appusers as users;
+use entity::g_appusers::Entity as UserEntity;
+pub async fn create_release_handler(username: String ,body: releases::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
+    let user_result = UserEntity::find()
+        .filter(users::Column::UserName.eq(username.clone()))
+        .one(&*db_pool)
+        .await;
 
-    print!("Request Authenticated: {}", authenticated);
-
+    // Extract the user ID
+    let (user_id,workspace_id) = match user_result {
+        Ok(Some(user)) => (user.id, user.workspace_id),
+        Ok(None) => return Err(reject::not_found()), // User not found
+        Err(_) => return Err(reject::custom(InvalidRequestBodyError)), // Database error
+    };
     let release = releases::ActiveModel {
         version: Set(body.version),
         file_path: Set(body.file_path),
         file_json:Set(body.file_json),
         created_at: Set(body.created_at),
+        workspace_id: Set(workspace_id),
         // Set the last login to the current time
 
         is_released: Set(body.is_released),
         released_date:Set(body.released_date),
-        created_by_user: Set(body.created_by_user),
+        created_by_user: Set(user_id),
         // Set the last login to the current time
         ..Default::default()
     };
@@ -82,12 +98,42 @@ pub async fn delete_release_handler(id:i32,_:String,db_pool:Arc<DatabaseConnecti
         Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
-pub async fn read_all_release_handler(_:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match ReleaseEntity::find().all(&*db_pool).await {
-        // If the user is empty, return a 404
-        Ok(releases) => Ok(warp::reply::json(&releases)),
-        Err(_) => Err(reject::custom(DatabaseError)),
-    }
+pub async fn read_all_release_handler(username:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    let result = read_workspace_handler(username.clone(), db_pool.clone()).await;
+    // Extract the response body from the Warp reply
+    let response_body = match result {
+        Ok(reply) => {
+            let bytes = to_bytes(reply.into_response().into_body()).await.unwrap_or_default();
+            String::from_utf8(bytes.to_vec()).unwrap_or_default()
+        },
+        Err(_) => return Err(warp::reject::not_found()), // Handle errors appropriately
+    };
+    // Deserialize the response into WorkspaceResponse
+    let workspace_response: WorkspaceResponse = serde_json::from_str(&response_body).unwrap_or_else(|_| {
+        // Handle deserialization errors appropriately
+        eprintln!("Failed to deserialize response");
+        WorkspaceResponse { id: -1, name: "Unknown".to_string() }
+    });
+    let workspace_id = workspace_response.id;
+    let query = WorkspaceEntity::find()
+            .filter(workspaces::Column::Id.eq(workspace_id))
+            .find_also_related(ReleaseEntity)
+            .all(&*db_pool)
+            .await
+            .map_err(|_| warp::reject::not_found())?;
+    let mut releases=Vec::new();
+    for (_,related_releases) in query{
+        if let Some(release) = related_releases {
+            releases.push(ReleaseResponse {
+                id: release.id,
+                version: release.version.to_string(), // Adjust according to your field name
+            });
+        }
+    }   
+    let response = serde_json::to_string(&releases).unwrap_or_else(|_| "[]".to_string());
+    // Now you can use the workspace_id to fetch related rules or perform other actions
+    // For now, let's just return it as a simple example response
+    Ok(warp::reply::with_status(response, StatusCode::OK))
 }
 
 fn get_keys(value: &Value) -> Vec<String> {

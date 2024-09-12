@@ -35,6 +35,8 @@ pub enum Relation {
     GAudittrail,
     #[sea_orm(has_many = "super::g_rules::Entity")]
     GRules,
+    #[sea_orm(has_many = "super::g_releases::Entity")]
+    GReleases,
 }
 
 impl Related<super::g_appusers::Entity> for Entity {
@@ -52,6 +54,11 @@ impl Related<super::g_audittrail::Entity> for Entity {
 impl Related<super::g_rules::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::GRules.def()
+    }
+}
+impl Related<super::g_releases::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::GReleases.def()
     }
 }
 
