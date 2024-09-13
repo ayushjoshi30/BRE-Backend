@@ -1,14 +1,13 @@
 use sea_orm::DatabaseConnection;
-use warp:: {http::header::{HeaderMap, HeaderValue}, Filter};
+use warp::Filter;
 use std::sync::Arc;
 use crate::controllers::login_handler::*;
-use crate::controllers::rule_handler::*;
-use crate::controllers::audittrail_handler::*;
-use crate::controllers::release_handler::*;
-use crate::controllers::configure_handler::*;
-use crate::auth::auth::with_auth;
 use crate::apiroutes::user_route::*;
 use crate::apiroutes::workspace_route::*;
+use crate::apiroutes::rule_route::*;
+use crate::apiroutes::release_route::*;
+use crate::apiroutes::audittrail_route::*;
+use crate::apiroutes::configure_route::*;
 // A function to build our routes
 pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     
@@ -38,7 +37,7 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
                 .or(update_rule(db_pool.clone()))
                 .or(delete_rule(db_pool.clone()))
                 .or(save_draft(db_pool.clone()))
-                .or(view_draft(db_pool.clone()))
+                .or(publish_rule(db_pool.clone()))
         );
     let release_routes = warp::path("release")
         .and(
@@ -82,177 +81,6 @@ pub fn login_route(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = i
         .and(with_pool(db_pool))
         .and_then(login_handler)
 }
-
-
-
-
-pub fn create_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("create_rule")
-       .and(warp::post())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(create_rule_handler)
-}
-pub fn read_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_rule"/i32)
-        .and(warp::get())
-        .and(with_auth())
-        .and(with_pool(db_pool))
-        .and_then(read_rule_handler)
-}
-pub fn read_all_rules(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_all_rules")
-       .and(warp::get())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(read_all_rule_handler)
-}
-pub fn update_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_rule" / i32)
-       .and(warp::put())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_rule_handler)
-}
-pub fn delete_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_rule" / i32)
-       .and(warp::delete())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(delete_rule_handler)
-}
-pub fn create_release(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("create_release")
-        .and(warp::post())
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_pool(db_pool))
-        .and_then(create_release_handler)
-}
-pub fn read_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_release"/i32)
-        .and(warp::get())
-        .and(with_auth())
-        .and(with_pool(db_pool))
-        .and_then(read_release_handler)
-}
-pub fn read_all_releases(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_all_releases")
-       .and(warp::get())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(read_all_release_handler)
-}
-pub fn update_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_release" / i32)
-       .and(warp::put())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_release_handler)
-}
-pub fn delete_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_release" / i32)
-       .and(warp::delete())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(delete_release_handler)
-}
-pub fn create_audittrail(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("create_audittrail")
-        .and(warp::post())
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_pool(db_pool))
-        .and_then(create_audittrail_handler)
-}
-pub fn read_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_audittrail"/i32)
-        .and(warp::get())
-        .and(with_auth())
-        .and(with_pool(db_pool))
-        .and_then(read_audittrail_handler)
-}
-pub fn read_all_audittrails(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_all_audittrails")
-       .and(warp::get())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(read_all_audittrail_handler)
-}
-pub fn update_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_audittrail" / i32)
-       .and(warp::put())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_audittrail_handler)
-}
-pub fn delete_audittrail(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_audittrail" / i32)
-       .and(warp::delete())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(delete_audittrail_handler)
-}
-pub fn create_configure(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("create_configure")
-        .and(warp::post())
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_pool(db_pool))
-        .and_then(create_configure_handler)
-}
-pub fn read_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_configure"/i32)
-        .and(warp::get())
-        .and(with_auth())
-        .and(with_pool(db_pool))
-        .and_then(read_configure_handler)
-}
-pub fn read_all_configures(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_all_configures")
-       .and(warp::get())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(read_all_configure_handler)
-}
-pub fn update_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("update_configure" / i32)
-       .and(warp::put())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_configure_handler)
-}
-pub fn delete_configure(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("delete_configure" / i32)
-       .and(warp::delete())
-       .and(with_auth())
-       .and(with_pool(db_pool))
-       .and_then(delete_configure_handler)
-}
-pub fn save_draft(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("savedraft"/i32 )
-       .and(warp::put())
-       .and(with_auth())
-       .and(warp::body::json())
-       .and(with_pool(db_pool))
-       .and_then(update_rule_handler)
-}
-pub fn view_draft(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp ::Rejection> + Clone{
-    warp::path!("viewdraft"/i32)
-        .and(warp::get())
-        .and(with_auth())
-        .and(with_pool(db_pool))
-        .and_then(read_draft)
-
-}
 fn with_pool(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = (Arc<DatabaseConnection>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db_pool.clone())
-}
-pub fn with_headers() -> impl Filter<Extract = (HeaderMap<HeaderValue>,), Error = std::convert::Infallible> + Clone {
-    warp::header::headers_cloned()
 }

@@ -137,6 +137,22 @@ pub async fn update_rule_handler(id:i32,_:String,body: HashMap<String, Value>,db
 
     Ok(warp::reply::json(&response))
 }
+pub async fn publish_rule_handler(id:i32,_:String,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
+    let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+    let rule = rule.ok_or(reject::custom(ResourceNotFound))?;
+    println!("{:?}",rule);
+    // let (changes, rule_model)  = update_map_rules(rule.clone(), body.clone(), id);
+    // println!("{:?}",rule_model);
+    // let updated_rule = rule_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+    // Construct a response with the changes made
+    let response = json!({
+        "message": "rule updated successfully",
+        "changes": "changes",
+        "entity": "updated_rule"
+    });
+
+    Ok(warp::reply::json(&response))
+}
 pub async fn delete_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
@@ -306,15 +322,4 @@ fn get_keys(value: &Value) -> Vec<String> {
     keys
 }
 
-pub async fn read_draft(id:i32,_: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match RuleEntity::find()
-        .filter(rules::Column::Id.eq(id))
-        .filter(rules::Column::IsDraft.eq(true))
-        .one(&*db_pool)
-        .await
-        {
-            Ok(Some(rule)) => Ok(warp::reply::json(&rule.draft_file_json)),
-            Ok(None) => Err(reject::not_found()), // Rejected as NotFound
-            Err(_) => Err(reject::custom(DatabaseError)), // Custom rejection for DB errors
-        }
-}
+

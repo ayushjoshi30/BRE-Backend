@@ -4,6 +4,10 @@ mod auth {
 mod apiroutes{
     pub mod user_route;
     pub mod workspace_route;
+    pub mod rule_route;
+    pub mod release_route;
+    pub mod audittrail_route;
+    pub mod configure_route;
 }
 mod error;
 mod models {

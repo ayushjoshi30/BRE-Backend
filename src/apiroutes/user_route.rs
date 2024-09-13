@@ -1,5 +1,5 @@
 use sea_orm::DatabaseConnection;
-use warp:: {http::header::{HeaderMap, HeaderValue}, Filter};
+use warp:: Filter;
 use std::sync::Arc;
 use crate::controllers::user_handler::*;
 use crate::auth::auth::with_auth;
