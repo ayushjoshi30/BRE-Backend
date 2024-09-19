@@ -10,6 +10,7 @@ use warp::{http::StatusCode,reject, reply::Reply,hyper::body::to_bytes};
 use crate::controllers::workspace_handler::*;
 use crate::error::Error::*;
 use crate::WebResult;
+use chrono::Utc;
 use crate::models::workspace_model::WorkspaceResponse;
 use entity::g_workspaces as workspaces;
 use entity::g_workspaces::Entity as WorkspaceEntity;
@@ -137,22 +138,47 @@ pub async fn update_rule_handler(id:i32,_:String,body: HashMap<String, Value>,db
 
     Ok(warp::reply::json(&response))
 }
-pub async fn publish_rule_handler(id:i32,_:String,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
-    let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+pub async fn publish_rule_handler(
+    id: i32, 
+    _: String, 
+    db_pool: Arc<DatabaseConnection>
+) -> Result<impl Reply, Rejection> {
+    
+    // Fetch the rule entity from the database
+    let rule = RuleEntity::find()
+        .filter(rules::Column::Id.eq(id))
+        .one(&*db_pool)
+        .await
+        .map_err(|_| reject::custom(DatabaseError))?;
+    
+    // Check if the rule exists
     let rule = rule.ok_or(reject::custom(ResourceNotFound))?;
-    println!("{:?}",rule);
-    // let (changes, rule_model)  = update_map_rules(rule.clone(), body.clone(), id);
-    // println!("{:?}",rule_model);
-    // let updated_rule = rule_model.update(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
+    let mut body=HashMap::new();
+    body.insert("is_draft".to_string(), Value::from(false));
+    body.insert("published_at".to_string(), Value::from(Utc::now().to_rfc3339()));
+    body.insert("rule_json".to_string(), Value::from(rule.clone().draft_file_json));
+    body.insert("rule_path".to_string(), Value::from(rule.clone().draft_file_path));
+    body.insert("draft_file_json".to_string(), Value::Null);
+    body.insert("draft_file_path".to_string(), Value::from(""));
+    body.insert("version".to_string(), Value::from(""));
+    // Extract the "version" from the body and update rule.version if it exis
+    let (_, rule_model)  = update_map_rules(rule.clone(), body.clone(), id);
+    // Update the rule in the database
+    let updated_rule = rule_model.update(&*db_pool)
+        .await
+        .map_err(|_| reject::custom(DatabaseError))?;
+
     // Construct a response with the changes made
-    let response = json!({
-        "message": "rule updated successfully",
-        "changes": "changes",
-        "entity": "updated_rule"
+    let response = serde_json::json!({
+        "message": "Published successfully",
+        "updated_entity": updated_rule // You can pass this back in the response
     });
 
+    // Send the JSON response
     Ok(warp::reply::json(&response))
 }
+
+
 pub async fn delete_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
     let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
 
@@ -172,7 +198,7 @@ pub async fn delete_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnect
 
     Ok(warp::reply::json(&response))
 }
-fn update_map_rules(
+pub fn update_map_rules(
     rule: rules::Model,
     body: HashMap<String, Value>,
     id: i32,
@@ -253,14 +279,7 @@ fn update_map_rules(
     }
 
     // Handle "draft_file_path"
-    if body_keys.contains(&"draft_file_path".to_string()) {
-        if let Some(Value::String(draft_file_path)) = body.get("draft_file_path") {
-            if rule.draft_file_path != *draft_file_path {
-                update_query.draft_file_path = Set(draft_file_path.clone());
-                changes.insert("draft_file_path".to_string(), draft_file_path.clone());
-            }
-        }
-    }
+    
 
     // Handle "draft_file_json"
     if body_keys.contains(&"draft_file_json".to_string()) {
@@ -275,7 +294,14 @@ fn update_map_rules(
             changes.insert("draft_file_path".to_string(), format!("S3path/bucketname/{}", draft_file_json));
         }
     }
-
+    if body_keys.contains(&"draft_file_path".to_string()) {
+        if let Some(Value::String(draft_file_path)) = body.get("draft_file_path") {
+            if rule.draft_file_path != *draft_file_path {
+                update_query.draft_file_path = Set(draft_file_path.clone());
+                changes.insert("draft_file_path".to_string(), draft_file_path.clone());
+            }
+        }
+    }
     // Handle "is_draft"
     if body_keys.contains(&"is_draft".to_string()) {
         if let Some(Value::Bool(is_draft)) = body.get("is_draft") {
@@ -307,7 +333,6 @@ fn update_map_rules(
             }
         }
     }
-
     // Return the changes map and updated ActiveModel
     (changes, update_query)
 }

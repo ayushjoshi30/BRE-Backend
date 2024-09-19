@@ -48,8 +48,8 @@ pub async fn create_user_handler(authenticated: String ,body: users::Model,db_po
 
     Ok(warp::reply::json(&user))
 }
-pub async fn read_user_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
-    match UserEntity::find().filter(users::Column::Id.eq(id)).one(&*db_pool).await {
+pub async fn read_user_handler(username:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    match UserEntity::find().filter(users::Column::UserName.eq(username)).one(&*db_pool).await {
         // If the user is empty, return a 404
         Ok(Some(user)) => Ok(warp::reply::json(&user)),
         Ok(None) => Err(reject::custom(ResourceNotFound)),

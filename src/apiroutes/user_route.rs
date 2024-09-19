@@ -13,7 +13,7 @@ pub fn create_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = imp
 }
 // Read User
 pub fn read_user(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
-    warp::path!("read_user" / i32)
+    warp::path!("read_user")
        .and(warp::get())
        .and(with_auth())
        .and(with_pool(db_pool))
