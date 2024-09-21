@@ -3,6 +3,7 @@ use entity::g_rules as rules;
 use serde_json::json;
 use chrono::NaiveDateTime; // For DateTime handling
 use serde_json::{Map, Value};
+use entity::g_releases as releases;
 use warp::reject::Rejection;
 use std::collections::HashMap;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait};
@@ -17,7 +18,6 @@ use entity::g_workspaces::Entity as WorkspaceEntity;
 use entity::g_appusers as users;
 use entity::g_rules::Entity as RuleEntity;
 use entity::g_appusers::Entity as UserEntity;
-use crate::models::rules_model::RuleResponse;
 pub async fn create_rule_handler(username: String, body: rules::Model, db_pool: Arc<DatabaseConnection>) -> Result<impl Reply, Rejection> {
     // Query to get the user
     let user_result = UserEntity::find()
@@ -112,16 +112,13 @@ pub async fn read_all_rule_handler(username:String, db_pool: Arc<DatabaseConnect
     let mut rules=Vec::new();
     for (_,related_rules) in query{
         if let Some(rule) = related_rules {
-            rules.push(RuleResponse {
-                id: rule.id,
-                rulejson: rule.rule_json.to_string(), // Adjust according to your field name
-            });
+            rules.push(rule);
         }
         }   
-    let response = serde_json::to_string(&rules).unwrap_or_else(|_| "[]".to_string());
-    // Now you can use the workspace_id to fetch related rules or perform other actions
-    // For now, let's just return it as a simple example response
-    Ok(warp::reply::with_status(response, StatusCode::OK))
+        let response = serde_json::to_string_pretty(&rules).unwrap_or_else(|_| "[]".to_string());
+
+        // Return the response with a 200 OK status
+        Ok(warp::reply::with_status(response, StatusCode::OK))
 }
 pub async fn update_rule_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
     let rule = RuleEntity::find().filter(rules::Column::Id.eq(id)).one(&*db_pool).await.map_err(|_| reject::custom(DatabaseError))?;
@@ -138,6 +135,47 @@ pub async fn update_rule_handler(id:i32,_:String,body: HashMap<String, Value>,db
 
     Ok(warp::reply::json(&response))
 }
+pub async fn read_draft_handler(
+    username: String,
+    db_pool: Arc<DatabaseConnection>
+) -> WebResult<impl Reply> {
+    // Query for all rules with the given ID that are drafts
+    let result = read_workspace_handler(username.clone(), db_pool.clone()).await;
+    // Extract the response body from the Warp reply
+    let response_body = match result {
+        Ok(reply) => {
+            let bytes = to_bytes(reply.into_response().into_body()).await.unwrap_or_default();
+            String::from_utf8(bytes.to_vec()).unwrap_or_default()
+        },
+        Err(_) => return Err(warp::reject::not_found()), // Handle errors appropriately
+    };
+    // Deserialize the response into WorkspaceResponse
+    let workspace_response: WorkspaceResponse = serde_json::from_str(&response_body).unwrap_or_else(|_| {
+        // Handle deserialization errors appropriately
+        eprintln!("Failed to deserialize response");
+        WorkspaceResponse { id: -1, name: "Unknown".to_string() }
+    });
+    let workspace_id = workspace_response.id;
+    let query = WorkspaceEntity::find()
+            .filter(workspaces::Column::Id.eq(workspace_id))
+            .find_also_related(RuleEntity)
+            .all(&*db_pool)
+            .await
+            .map_err(|_| warp::reject::not_found())?;
+    let mut rules=Vec::new();
+    for (_,related_rules) in query{
+        if let Some(rule) = related_rules {
+            if rule.is_draft{
+                rules.push(rule);
+            }
+            
+        }
+        }   
+        let response = serde_json::to_string_pretty(&rules).unwrap_or_else(|_| "[]".to_string());
+
+        // Return the response with a 200 OK status
+        Ok(warp::reply::with_status(response, StatusCode::OK))
+}
 pub async fn publish_rule_handler(
     id: i32, 
     _: String, 
@@ -150,10 +188,12 @@ pub async fn publish_rule_handler(
         .one(&*db_pool)
         .await
         .map_err(|_| reject::custom(DatabaseError))?;
-    
+
     // Check if the rule exists
     let rule = rule.ok_or(reject::custom(ResourceNotFound))?;
-    let mut body=HashMap::new();
+    
+    // Prepare the body for updating the rule
+    let mut body = HashMap::new();
     body.insert("is_draft".to_string(), Value::from(false));
     body.insert("published_at".to_string(), Value::from(Utc::now().to_rfc3339()));
     body.insert("rule_json".to_string(), Value::from(rule.clone().draft_file_json));
@@ -161,22 +201,44 @@ pub async fn publish_rule_handler(
     body.insert("draft_file_json".to_string(), Value::Null);
     body.insert("draft_file_path".to_string(), Value::from(""));
     body.insert("version".to_string(), Value::from(""));
-    // Extract the "version" from the body and update rule.version if it exis
-    let (_, rule_model)  = update_map_rules(rule.clone(), body.clone(), id);
+
+    // Handle version deletion
+    let v = rule.version.to_string();
+    if !v.is_empty() {
+        match releases::Entity::delete_many()
+            .filter(releases::Column::Version.eq(v.clone()))
+            .exec(&*db_pool)
+            .await
+        {
+            Ok(result) if result.rows_affected > 0 => {
+                // Rows deleted successfully
+            }
+            Ok(_) => return Err(reject::custom(ResourceNotFound)), // No rows affected
+            Err(_) => return Err(reject::custom(DatabaseError)), // Handle database errors
+        }
+    } else {
+        return Err(reject::custom(ResourceNotFound)); // Handle case where version is empty
+    }
+    
+
+    // Update rule version and other fields
+    let (_, rule_model) = update_map_rules(rule.clone(), body.clone(), id);
+    
     // Update the rule in the database
     let updated_rule = rule_model.update(&*db_pool)
         .await
         .map_err(|_| reject::custom(DatabaseError))?;
 
     // Construct a response with the changes made
-    let response = serde_json::json!({
+    let response = serde_json::json!( {
         "message": "Published successfully",
-        "updated_entity": updated_rule // You can pass this back in the response
+        "updated_entity": updated_rule // Return updated rule
     });
 
     // Send the JSON response
     Ok(warp::reply::json(&response))
 }
+
 
 
 pub async fn delete_rule_handler(id: i32, _:String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {

@@ -40,14 +40,13 @@ pub fn delete_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = imp
        .and(with_pool(db_pool))
        .and_then(delete_rule_handler)
 }
-// pub fn view_draft(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp ::Rejection> + Clone{
-//     warp::path!("viewdraft"/i32)
-//         .and(warp::get())
-//         .and(with_auth())
-//         .and(with_pool(db_pool))
-//         .and_then(read_draft)
-
-// }
+pub fn view_draft(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp ::Rejection> + Clone{
+    warp::path!("viewdraft")
+        .and(warp::get())
+        .and(with_auth())
+        .and(with_pool(db_pool))
+        .and_then(read_draft_handler)
+}
 pub fn publish_rule(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!(i32/"publish")
         .and(warp::put())

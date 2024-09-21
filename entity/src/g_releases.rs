@@ -7,7 +7,7 @@ use chrono::NaiveDateTime;
 #[sea_orm(table_name = "g_releases")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    #[serde(skip_deserializing)]
+    #[serde(default)]
     pub id: i32,
     pub version: String,
     #[serde(default)]

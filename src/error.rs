@@ -17,6 +17,8 @@ pub enum Error {
     InvalidAuthHeaderError,
     #[error("no permission")]
     NoPermissionError,
+    #[error("Release with different release already present")]
+    DuplicateReleaseError,
     #[error("invalid request body")]
     InvalidRequestBodyError,
     #[error("database error")]
@@ -45,6 +47,7 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
             Error::JWTTokenError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::ResourceNotFound => (StatusCode::NOT_FOUND, e.to_string()),
             Error::DatabaseError => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Error::DuplicateReleaseError => (StatusCode::INTERNAL_SERVER_ERROR,e.to_string()),
             Error::InvalidRequestBodyError => (StatusCode::BAD_REQUEST, e.to_string()),
             Error::NoAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::InvalidAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),

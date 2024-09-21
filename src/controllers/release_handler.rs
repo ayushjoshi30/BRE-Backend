@@ -1,13 +1,8 @@
-use std::string;
 use std::sync::Arc;
-
-use serde_json::Value as Json;
+use std::collections::HashMap;
 use chrono::NaiveDateTime;
 use entity::g_releases as releases;
-use crate::apiroutes::release_route::read_release;
 use crate::controllers::workspace_handler::*;
-use std::collections::HashMap;
-use chrono::Utc;
 use serde_json::json;
 use crate::models::workspace_model::WorkspaceResponse;
 use serde_json::{Value, Map};
@@ -18,14 +13,13 @@ use warp::{http::StatusCode,reject, reply::Reply,hyper::body::to_bytes};
 use crate::error::Error::*;
 use crate::WebResult;
 use entity::g_releases::Entity as ReleaseEntity;
-use crate::models::release_model::ReleaseResponse;
+use crate::models::release_model::*;
 use entity::g_appusers as users;
 use entity::g_appusers::Entity as UserEntity;
 use entity::g_rules::Entity as RuleEntity;
 use warp::reject::Rejection;
 use entity::g_rules as rules;
 use crate::controllers::rule_handler::*;
-use crate::controllers::user_handler::*;
 pub async fn create_release_handler(username: String ,body: releases::Model,db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply>{
     let user_result = UserEntity::find()
         .filter(users::Column::UserName.eq(username.clone()))
@@ -75,6 +69,17 @@ pub async fn read_release_handler(id: i32, _:String, db_pool: Arc<DatabaseConnec
 
     // If there is a database error, return a generic database error
     Err(_) => Err(reject::custom(DatabaseError)),
+    }
+}
+pub async fn read_release_version_handler(version: String, _: String, db_pool: Arc<DatabaseConnection>) -> WebResult<impl Reply> {
+    match ReleaseEntity::find()
+        .filter(releases::Column::Version.eq(version))
+        .all(&*db_pool)
+        .await
+    {
+        Ok(releases) if !releases.is_empty() => Ok(warp::reply::json(&releases)),
+        Ok(_) => Err(reject::custom(ResourceNotFound)),
+        Err(_) => Err(reject::custom(DatabaseError)),
     }
 }
 pub async fn update_release_handler(id:i32,_:String,body: HashMap<String, Value>,db_pool:Arc<DatabaseConnection>)->WebResult<impl Reply>{
@@ -132,10 +137,12 @@ pub async fn read_all_release_handler(username:String, db_pool: Arc<DatabaseConn
     let mut releases=Vec::new();
     for (_,related_releases) in query{
         if let Some(release) = related_releases {
+            if !release.is_released{
             releases.push(ReleaseResponse {
                 id: release.id,
                 version: release.version.to_string(), // Adjust according to your field name
             });
+        }
         }
     }   
     let response = serde_json::to_string(&releases).unwrap_or_else(|_| "[]".to_string());
@@ -154,93 +161,179 @@ fn get_keys(value: &Value) -> Vec<String> {
     }
     keys
 }
-pub async fn ready_for_release_handler(
-    id: i32, 
+pub async fn ready_for_release_handler( 
     username: String, 
-    body: HashMap<String, Value>, // the body will only contain the version  
+    body: ReadyReleaseRequest, // The body contains rules and version
     db_pool: Arc<DatabaseConnection>
 ) -> Result<impl Reply, Rejection> {
-
-    // Extract the ruleId from the body
-    let rule_id = match body.get("ruleId") {
-        Some(Value::Number(num)) if num.is_u64() => num.as_u64().unwrap() as i32,
-        _ => return Err(reject::custom(DatabaseError)), // return error if ruleId is not found or is invalid
-    };
-
-    // Fetch the rule entity from the database using the ruleId
-    let rule = RuleEntity::find()
-        .filter(rules::Column::Id.eq(rule_id))
+    // Iterate over the rule IDs in the request body
+    for rule_id in &body.rules {
+        // Check if the rule exists in the database
+        let rule = RuleEntity::find()
+            .filter(rules::Column::Id.eq(*rule_id))
+            .one(&*db_pool)
+            .await
+            .map_err(|_| {
+                eprintln!("Database error while fetching rule ID {}", rule_id);
+                reject::custom(DatabaseError)
+            })?;
+        
+        let rule = rule.ok_or_else(|| {
+            eprintln!("Rule ID {} not found", rule_id);
+            reject::custom(ResourceNotFound)
+        })?;
+        if rule.version=="" || rule.version!=body.version{
+            if rule.version!=body.version{
+                return Err(reject::custom(DuplicateReleaseError))
+            }
+            continue
+        }
+        let user_result = UserEntity::find()
+        .filter(users::Column::UserName.eq(username.clone()))
         .one(&*db_pool)
-        .await
-        .map_err(|_| reject::custom(DatabaseError))?; // Handle database errors
+        .await;
 
-    // Check if the rule exists
-    let rule = rule.ok_or_else(|| reject::custom(ResourceNotFound))?; // return 404 error if rule is not found
-
-    // Fetch release instance asynchronously using the provided id and username
-    let release_instance = read_release_handler(id, username, db_pool.clone()).await
-        .map_err(|_| reject::custom(DatabaseError))?; // Handle any errors from read_release_handler
-
-    println!("{:?}", release_instance); // Print the release instance for debugging purposes
-
-    // Extract the version from the body
-    let version = match body.get("version") {
-        Some(Value::String(ver)) => ver,
-        _ => return Err(reject::custom(DatabaseError)), // Handle missing or invalid version error
-    };
-
-    // Perform any additional logic needed, such as updating the rule with the version or performing business logic
-
-    // Return success response (this is just a placeholder, modify it as per your needs)
-    Ok(warp::reply::json(&format!("Rule {} is ready for release with version {}", rule_id, version)))// Print the release instance for debugging purposes
-
-    // Extract the "version" from the body and update rule.version if it exists
-    // let (_, rule_model) = update_map_rules(rule.clone(), body.clone(), id);
-    // let updated_rule = rule_model.update(&*db_pool)
-    //     .await
-    //     .map_err(|_| reject::custom(DatabaseError))?;
-    // // Call read_user_handler to get the user details (e.g., user ID)
-    // let user_result = UserEntity::find()
-    //     .filter(users::Column::UserName.eq(username))
-    //     .one(&*db_pool)
-    //     .await;
-
-    // // Match the result of the user lookup
-    // let created_by_user = match user_result {
-    //     Ok(Some(user)) => {
-    //         // Assuming the user object has an `id` field
-    //         user.id
-    //     },
-    //     Ok(None) => {
-    //         // Handle the case where the user is not found
-    //         return Err(reject::custom(ResourceNotFound));
-    //     },
-    //     Err(_) => {
-    //         // Handle database error
-    //         return Err(reject::custom(DatabaseError));
-    //     }
-    // };
-
-    // // Update the rule in the database
+    // Extract the user ID
+        let (user_id,workspace_id) = match user_result {
+            Ok(Some(user)) => (user.id, user.workspace_id),
+            Ok(None) => return Err(reject::not_found()), // User not found
+            Err(_) => return Err(reject::custom(InvalidRequestBodyError)), // Database error
+        };
+        let create_release_body = releases::ActiveModel {
+            version: Set(body.version.clone()),
+            file_path: Set(String::from("")),
+            file_json:Set(Value::from("{}")),
+            created_at: Set(current_time()),
+            workspace_id: Set(workspace_id),
+            // Set the last login to the current time
     
-    // let mut bodyresponse=HashMap::new();    // Prepare the body for updating
-    // bodyresponse.insert("version".to_string(), Value::from(body.get("version").cloned().unwrap_or(Value::Null)));
-    // bodyresponse.insert("workspace_id".to_string(), Value::from(rule.workspace_id));  
-    // bodyresponse.insert("file_json".to_string(), Value::from(rule.clone().draft_file_json));
-    // bodyresponse.insert("file_path".to_string(), Value::from(rule.clone().draft_file_path));
-    // bodyresponse.insert("created_at".to_string(), Value::from(Utc::now().to_rfc3339()));
-    // bodyresponse.insert("is_released".to_string(), Value::from(false));
-    // bodyresponse.insert("created_by_user".to_string(), Value::from(created_by_user)); // Use the fetched user ID
-    // let (_, release_model)  = update_map_releases(rele.clone(), bodyresponse.clone(), id);
-    // // Construct a response with the changes made
-    // let response = serde_json::json!({
-    //     "message": "Published successfully",
-    //     "updated_entity": updated_rule
-    // });
+            is_released: Set(bool::from(false)),
+            released_date:Set(current_time()),
+            created_by_user: Set(user_id),
+            // Set the last login to the current time
+            ..Default::default()
+        };
 
+        let created_release: releases::Model = create_release_body.insert(&*db_pool).await.map_err(|e| {
+            eprintln!("Failed to insert release: {:?}", e);
+            reject::custom(InvalidRequestBodyError)
+        })?;
+        let mut update_rule_body: HashMap<String, Value> = HashMap::new();
+        let id=created_release.id;
+        // Insert the version from the body into the update rule body
+        update_rule_body.insert("version".to_string(), Value::String(body.version.clone()));
 
-    // Ok(warp::reply::json(&format!("Rule {} is ready for release with version {}", rule_id, version)))
+        // Call the update_rule_handler
+        let _ = update_rule_handler(
+            *rule_id, // Rule ID as i32
+            username.clone(), // Pass the username context
+            update_rule_body,
+            db_pool.clone()
+        ).await.map_err(|_| {
+            eprintln!("Failed to update rule ID {}", rule_id);
+            reject::custom(DatabaseError)
+        })?;
+
+        // Prepare to update release
+        let mut update_release_body: HashMap<String, Value> = HashMap::new();
+        update_release_body.insert("file_json".to_string(), Value::String(rule.draft_file_json.clone().to_string()));
+        update_release_body.insert("file_path".to_string(), Value::String(rule.draft_file_path.clone()));
+
+        // Call the update_release_handler
+        let _ = update_release_handler(
+            id, // Release ID as i32
+            username.clone(), // Pass the username context
+            update_release_body,
+            db_pool.clone()
+        ).await.map_err(|_| {
+            eprintln!("Failed to update release for rule ID {}", rule_id);
+            reject::custom(DatabaseError)
+        })?;
+
+        // Optional: Log successful updates for debugging
+    }
+    
+    // Return a success message upon completing the updates
+    Ok(warp::reply::json(&format!("Rules are ready for release with version: {}", body.version)))
 }
+pub async fn publish_release_handler(
+    body: PublishReleaseRequest,
+    username: String,
+    db_pool: Arc<DatabaseConnection>
+) -> Result<impl Reply, Rejection> {
+    let version = body.version;
+    println!("{}", version);
+    let releases_response = read_release_version_handler(version.clone(), username.clone(), db_pool.clone()).await?;
+    let bytes = to_bytes(releases_response.into_response().into_body()).await.map_err(|_| {
+        eprintln!("Failed to read response body");
+        warp::reject::custom(ResourceNotFound)
+    })?;
+    let releases: Vec<releases::Model> = serde_json::from_slice(&bytes).map_err(|_| {
+        eprintln!("Failed to deserialize response: {:?}", String::from_utf8_lossy(&bytes));
+        warp::reject::custom(ResourceNotFound)
+    })?;
+    for entity in releases {
+        let id = entity.id;
+
+        let response_body = read_release_handler(id, username.clone(), db_pool.clone()).await
+            .map_err(|_| warp::reject::not_found())?;
+
+        let bytes = to_bytes(response_body.into_response().into_body()).await.unwrap_or_default();
+        let response: releases::Model = serde_json::from_slice(&bytes)
+            .map_err(|_| {
+                eprintln!("Failed to deserialize response: {:?}", String::from_utf8_lossy(&bytes));
+                warp::reject::custom(ResourceNotFound)
+            })?;
+
+        let version = response.version.clone();
+
+        let rule = RuleEntity::find()
+            .filter(rules::Column::Version.eq(version.clone()))
+            .one(&*db_pool)
+            .await.map_err(|_| {
+                eprintln!("Database error while fetching rule for version {}", version);
+                warp::reject::custom(DatabaseError)
+            })?;
+
+        let rule_id = match rule.clone() {
+            Some(r) => r.id,
+            None => {
+                eprintln!("No rule found for version {}", version);
+                return Err(warp::reject::custom(ResourceNotFound));
+            }
+        };
+
+        let draft_json = rule.clone().unwrap().draft_file_json.clone().to_string();
+        let draft_path = rule.clone().unwrap().draft_file_path.clone();
+
+        let update_rule_body: HashMap<String, Value> = [
+            ("version".to_string(), Value::String("".to_owned())),
+            ("rule_json".to_string(), Value::String(draft_json)),
+            ("rule_path".to_string(), Value::String(draft_path)),
+            ("draft_file_path".to_string(), Value::String("".to_string())),
+            ("draft_file_json".to_string(), Value::String("{}".to_string())),
+        ].iter().cloned().collect();
+
+        update_rule_handler(rule_id, username.clone(), update_rule_body, db_pool.clone()).await.map_err(|_| {
+            eprintln!("Failed to update rule ID {}", rule_id);
+            reject::custom(DatabaseError)
+        })?;
+
+        let updates_release_body = HashMap::from([
+            ("is_released".to_string(), Value::from(true)),
+        ]);
+
+        update_release_handler(id, username.clone(), updates_release_body, db_pool.clone()).await.map_err(|_| {
+            eprintln!("Failed to update release ID {}", id);
+            reject::custom(DatabaseError)
+        })?;
+    }
+
+    Ok(warp::reply::with_status("Releases published successfully", warp::http::StatusCode::OK))
+}
+
+
+
 fn update_map_releases(
     release: releases::Model,
     body: HashMap<String, Value>,
@@ -282,13 +375,11 @@ fn update_map_releases(
 
     // Handle "file_json"
     if body_keys.contains(&"file_json".to_string()) {
-        if let Some(Value::Object(file_json)) = body.get("file_json") {
-            let file_json_string = serde_json::to_string(file_json).unwrap_or_default();
-            let file_json_value: Json = serde_json::from_str(&file_json_string).unwrap_or_default();
-            if release.file_json != file_json_value {
-                update_query.file_json = Set(file_json_value);
-                changes.insert("file_json".to_string(), file_json_string);
-            }
+        let file_json = body.get("file_json"); 
+        let file_json = serde_json::to_value(file_json).unwrap(); // Convert back to Value
+        if release.file_json != file_json {
+            update_query.file_json = Set(file_json.clone());
+            changes.insert("rule_json".to_string(), file_json.to_string());
         }
     }
 
@@ -341,6 +432,8 @@ fn update_map_releases(
     // Return the changes map and updated ActiveModel
     (changes, update_query)
 }
-
+fn current_time() -> NaiveDateTime {
+    chrono::Utc::now().naive_utc()
+}
 
 

@@ -32,11 +32,12 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
     let rule_routes = warp::path("rule")
         .and(
             create_rule(db_pool.clone())
-                .or(read_rule(db_pool.clone()))
+                .or(read_rule(db_pool.clone())) 
                 .or(read_all_rules(db_pool.clone()))
                 .or(update_rule(db_pool.clone()))
                 .or(delete_rule(db_pool.clone()))
                 .or(save_draft(db_pool.clone()))
+                .or(view_draft(db_pool.clone()))
                 .or(publish_rule(db_pool.clone()))
         );
     let release_routes = warp::path("release")
@@ -46,6 +47,9 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
                 .or(read_all_releases(db_pool.clone()))
                 .or(update_release(db_pool.clone()))
                 .or(delete_release(db_pool.clone()))
+                .or(ready_for_release(db_pool.clone()))
+                .or(read_release_version(db_pool.clone()))
+                .or(publish_release(db_pool.clone()))
         );
     let audittrail_routes = warp::path("audittrail")
         .and(

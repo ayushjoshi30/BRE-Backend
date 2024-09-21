@@ -18,6 +18,13 @@ pub fn read_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = im
         .and(with_pool(db_pool))
         .and_then(read_release_handler)
 }
+pub fn read_release_version(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("read_release_version"/String)
+        .and(warp::get())
+        .and(with_auth())
+        .and(with_pool(db_pool))
+        .and_then(read_release_version_handler)
+}
 pub fn read_all_releases(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("read_all_releases")
        .and(warp::get())
@@ -39,6 +46,22 @@ pub fn delete_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = 
        .and(with_auth())
        .and(with_pool(db_pool))
        .and_then(delete_release_handler)
+}
+pub fn ready_for_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("ready_for_release")
+       .and(warp::post())
+       .and(with_auth())
+       .and(warp::body::json())
+       .and(with_pool(db_pool))
+       .and_then(ready_for_release_handler)
+}
+pub fn publish_release(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("publishrelease")
+       .and(warp::post())
+       .and(warp::body::json())
+       .and(with_auth())
+       .and(with_pool(db_pool))
+       .and_then(publish_release_handler)
 }
 fn with_pool(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = (Arc<DatabaseConnection>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db_pool.clone())
