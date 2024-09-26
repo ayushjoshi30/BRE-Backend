@@ -1,3 +1,9 @@
+/*
+File Description: This file contains the functions that handle the CRUD operations for the audittrail entity.
+Created Date: 26/09/2024
+Last Updated: 26/09/2024
+Author: Ayush Joshi
+ */
 use std::sync::Arc;
 use entity::g_audittrail as audittrails;
 use std::collections::HashMap;
