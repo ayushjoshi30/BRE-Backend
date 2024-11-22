@@ -1,6 +1,8 @@
 use sea_orm::DatabaseConnection;
 use warp::Filter;
 use std::sync::Arc;
+use serde_json::{json};
+use zen_engine::{model::DecisionContent, DecisionEngine};
 use crate::controllers::login_handler::*;
 use crate::apiroutes::user_route::*;
 use crate::apiroutes::workspace_route::*;
@@ -39,6 +41,7 @@ pub fn routes(db_pool : Arc<DatabaseConnection>) -> impl Filter<Extract = impl w
                 .or(save_draft(db_pool.clone()))
                 .or(view_draft(db_pool.clone()))
                 .or(publish_rule(db_pool.clone()))
+                .or(simulate_rule(db_pool.clone()))
         );
     let release_routes = warp::path("release")
         .and(

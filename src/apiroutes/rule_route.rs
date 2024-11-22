@@ -2,6 +2,7 @@ use sea_orm::DatabaseConnection;
 use warp::Filter;
 use std::sync::Arc;
 use crate::controllers::rule_handler::*;
+use crate::controllers::zen_handler::*;
 use crate::auth::auth::with_auth;
 pub fn create_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
     warp::path!("create_rule")
@@ -61,6 +62,12 @@ pub fn save_draft(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl
        .and(warp::body::json())
        .and(with_pool(db_pool))
        .and_then(update_rule_handler)
+}
+pub fn simulate_rule(db_pool : Arc<DatabaseConnection>)->impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone{
+    warp::path!("simulate" )
+       .and(warp::post())
+       .and(with_pool(db_pool))
+       .and_then(evaluate_decision_handler)
 }
 fn with_pool(db_pool: Arc<DatabaseConnection>) -> impl Filter<Extract = (Arc<DatabaseConnection>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db_pool.clone())

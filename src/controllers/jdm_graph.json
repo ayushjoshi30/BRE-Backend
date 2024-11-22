@@ -1,0 +1,395 @@
+{
+    "contentType": "application/vnd.gorules.decision",
+    "nodes": [
+      {
+        "name": "myRequest",
+        "id": "28db4e0c-528f-46da-b4e6-68357105b0cc",
+        "position": {
+          "x": -810,
+          "y": -80
+        },
+        "type": "inputNode"
+      },
+      {
+        "name": "Bureaus Data",
+        "content": {
+          "hitPolicy": "collect",
+          "inputs": [
+            {
+              "id": "5201360a-e28c-48bb-bd61-2ae19651b787",
+              "name": "Bureaus Score",
+              "type": "expression",
+              "field": "bureaus.score"
+            },
+            {
+              "id": "b2525438-7a5b-4779-94f7-55df96f90454",
+              "type": "expression",
+              "name": "Total Number of Loans"
+            },
+            {
+              "id": "1d5720a7-d723-4c3b-a726-d68d036cecdb",
+              "type": "expression",
+              "field": "bureaus.dpd",
+              "name": "DPD(12th month)"
+            }
+          ],
+          "outputs": [
+            {
+              "field": "cibilstatus",
+              "id": "02a67068-73fb-4949-ab04-b9006623ef51",
+              "name": "CibilStatus",
+              "type": "expression"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "25967747-144d-4796-a280-7e5d48aa06c2",
+              "5201360a-e28c-48bb-bd61-2ae19651b787": "<=599",
+              "b2525438-7a5b-4779-94f7-55df96f90454": "",
+              "1d5720a7-d723-4c3b-a726-d68d036cecdb": "",
+              "02a67068-73fb-4949-ab04-b9006623ef51": "\"Referred\""
+            },
+            {
+              "_id": "3c107765-00d8-4a8e-a080-93ba3b2d2b1b",
+              "5201360a-e28c-48bb-bd61-2ae19651b787": "<=650",
+              "b2525438-7a5b-4779-94f7-55df96f90454": "",
+              "1d5720a7-d723-4c3b-a726-d68d036cecdb": "",
+              "02a67068-73fb-4949-ab04-b9006623ef51": "\"Recommended\"\n"
+            },
+            {
+              "_id": "6d512a3d-0088-4dd7-9726-5189d8a50bd0",
+              "5201360a-e28c-48bb-bd61-2ae19651b787": "[650..1000]",
+              "b2525438-7a5b-4779-94f7-55df96f90454": "",
+              "1d5720a7-d723-4c3b-a726-d68d036cecdb": "",
+              "02a67068-73fb-4949-ab04-b9006623ef51": "\"Best\""
+            }
+          ]
+        },
+        "id": "3601b017-5b9a-49ad-b98d-7d0debe63f09",
+        "position": {
+          "x": 455,
+          "y": 10
+        },
+        "type": "decisionTableNode"
+      },
+      {
+        "name": "myResponse",
+        "id": "64a5092b-ac35-441d-8dd3-394d4786ba78",
+        "position": {
+          "x": 920,
+          "y": -130
+        },
+        "type": "outputNode"
+      },
+      {
+        "name": "OutputAssetValue",
+        "content": {
+          "hitPolicy": "collect",
+          "inputs": [
+            {
+              "id": "4c6ac9b4-cf3d-4262-b9ef-ce35977676e1",
+              "name": "Asset Value",
+              "type": "expression",
+              "field": "OAV.value"
+            }
+          ],
+          "outputs": [
+            {
+              "field": "OAVPercentage",
+              "id": "f81c831d-86ca-4da4-8f0f-798f06f3b500",
+              "name": "Output",
+              "type": "expression"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "0237e6aa-241b-43e9-b9a6-24b006230266",
+              "4c6ac9b4-cf3d-4262-b9ef-ce35977676e1": ">10",
+              "f81c831d-86ca-4da4-8f0f-798f06f3b500": "\"2%\""
+            },
+            {
+              "_id": "85b869c4-5fb0-46e5-a4bb-6cb4505510a9",
+              "4c6ac9b4-cf3d-4262-b9ef-ce35977676e1": "[5.. 10]",
+              "f81c831d-86ca-4da4-8f0f-798f06f3b500": "\"1.5%\""
+            },
+            {
+              "_id": "a8c7b7ac-3754-4a7f-92ff-311ba44162f5",
+              "4c6ac9b4-cf3d-4262-b9ef-ce35977676e1": "[0.. 5]",
+              "f81c831d-86ca-4da4-8f0f-798f06f3b500": "\"1%\""
+            }
+          ]
+        },
+        "id": "b14e2a1b-1c7e-48bf-83ad-72dac8eb651a",
+        "position": {
+          "x": 455,
+          "y": -130
+        },
+        "type": "decisionTableNode"
+      },
+      {
+        "name": "Loantovaluecalculator",
+        "content": "/**\r\n * @param input\r\n * @param {{\r\n *  dayjs: import('dayjs')\r\n *  Big: import('big.js').BigConstructor\r\n * }} helpers\r\n */\r\nconst handler = (input, { dayjs, Big }) => {\r\n  const { Profile, DOB, Loanamountrequested } = input.customer;\r\n  const { Gridvalue, \"Insurence value\": InsurenceValue, \"Market value\": MarketValue } = input.Value;\r\n\r\n  const AssetValue = (Number(Gridvalue) + Number(InsurenceValue) + Number(MarketValue)) / 3;\r\n  const LTVRatio = (Number(Loanamountrequested) / AssetValue) * 100;\r\n  const Eligibilityamount = AssetValue * LTVRatio;\r\n  return { LTVRatio, Eligibilityamount };\r\n}\r\n\r\n\r\n",
+        "id": "ffb6a8ef-9516-4fc7-8234-117566a8cc67",
+        "position": {
+          "x": 35,
+          "y": -200
+        },
+        "type": "functionNode"
+      },
+      {
+        "name": "LTVRatio",
+        "content": {
+          "hitPolicy": "collect",
+          "inputs": [
+            {
+              "id": "f4c8be1d-36f7-42c7-8804-2c90f581173a",
+              "name": "Input",
+              "type": "expression"
+            }
+          ],
+          "outputs": [
+            {
+              "field": "LTVRatio",
+              "id": "64abcecd-64a3-424f-b16f-830fe4543189",
+              "name": "Output",
+              "type": "expression"
+            },
+            {
+              "id": "b07bc7cc-d1ae-498e-b8ca-980de9706e5f",
+              "type": "expression",
+              "field": "eligibilityamount",
+              "name": "Eligibility Amount"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "5e1704cf-1143-44dd-8da2-6fb1c5e414d5",
+              "f4c8be1d-36f7-42c7-8804-2c90f581173a": "",
+              "64abcecd-64a3-424f-b16f-830fe4543189": "LTVRatio",
+              "b07bc7cc-d1ae-498e-b8ca-980de9706e5f": "Eligibilityamount"
+            }
+          ]
+        },
+        "id": "9aa895b3-3f2a-4395-8648-db8c31f628ca",
+        "position": {
+          "x": 450,
+          "y": -270
+        },
+        "type": "decisionTableNode"
+      },
+      {
+        "name": "mySwitch",
+        "content": {
+          "statements": [
+            {
+              "id": "7e4e7dc0-2df9-4177-a56c-081b503d0351",
+              "condition": "customer.Age>40 "
+            },
+            {
+              "id": "9b0fc1fe-d3b9-4dae-8fd9-4acbda489926",
+              "condition": "bureaus.score<550"
+            },
+            {
+              "id": "9b1c9c08-44a7-4396-a8a7-fe5a2a35747d",
+              "condition": "customer.Age<18"
+            },
+            {
+              "id": "40bcb935-f3a0-4846-987a-b7bb29abfd66",
+              "condition": ""
+            }
+          ],
+          "hitPolicy": "first"
+        },
+        "id": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "position": {
+          "x": -420,
+          "y": -225
+        },
+        "type": "switchNode"
+      },
+      {
+        "name": "myResponse",
+        "id": "2dde6293-7cb2-46ef-acc9-529f7b8ab227",
+        "position": {
+          "x": 540,
+          "y": -490
+        },
+        "type": "outputNode"
+      },
+      {
+        "name": "Eligibilitycheck",
+        "content": {
+          "hitPolicy": "first",
+          "inputs": [
+            {
+              "id": "be1978b3-71ad-4cc4-b8fd-a067d96f5ce7",
+              "name": "Input",
+              "type": "expression"
+            }
+          ],
+          "outputs": [
+            {
+              "field": "output",
+              "id": "80893706-b25b-45f8-a533-fa8485c3fb71",
+              "name": "Output",
+              "type": "expression"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "06a0f2fe-103f-425c-882c-37961ec6a423",
+              "be1978b3-71ad-4cc4-b8fd-a067d96f5ce7": "",
+              "80893706-b25b-45f8-a533-fa8485c3fb71": "\"Rejeced\""
+            }
+          ]
+        },
+        "id": "01b5a2b5-5f97-4de4-861b-5951d0a9457d",
+        "position": {
+          "x": 115,
+          "y": -415
+        },
+        "type": "decisionTableNode"
+      },
+      {
+        "name": "DeviationCheck",
+        "content": {
+          "hitPolicy": "collect",
+          "inputs": [
+            {
+              "id": "cba2de41-ed52-4ffa-88af-71d1fb39aba1",
+              "name": "Loan Amount Requested",
+              "type": "expression",
+              "field": "customer.Loanamountrequested"
+            }
+          ],
+          "outputs": [
+            {
+              "field": "Deviation.id",
+              "id": "c556ace9-a590-45f2-a7ad-9c03c6f74ea0",
+              "name": "Deviation",
+              "type": "expression"
+            },
+            {
+              "id": "9bc12c28-4b3b-45c8-859e-150471319a9e",
+              "type": "expression",
+              "field": "Deviation.present",
+              "name": "deviation status"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "0f057e26-5f65-46c0-90e9-4d29026cb308",
+              "cba2de41-ed52-4ffa-88af-71d1fb39aba1": "[500000.. 1000000]",
+              "c556ace9-a590-45f2-a7ad-9c03c6f74ea0": "2",
+              "9bc12c28-4b3b-45c8-859e-150471319a9e": "\"Loan amount exceeds 5lakh HCM approval required\""
+            },
+            {
+              "_id": "02e4b2d8-d59d-487d-8e6f-86c829f8eb7b",
+              "cba2de41-ed52-4ffa-88af-71d1fb39aba1": "[0.. 500000]",
+              "c556ace9-a590-45f2-a7ad-9c03c6f74ea0": "",
+              "9bc12c28-4b3b-45c8-859e-150471319a9e": "\"No\""
+            }
+          ]
+        },
+        "id": "6320f437-6627-4d84-bed9-5164cb38ed29",
+        "position": {
+          "x": 515,
+          "y": 180
+        },
+        "type": "decisionTableNode"
+      }
+    ],
+    "edges": [
+      {
+        "id": "6a98ded0-fda6-481a-9084-02e0a36244ec",
+        "sourceId": "3601b017-5b9a-49ad-b98d-7d0debe63f09",
+        "type": "edge",
+        "targetId": "64a5092b-ac35-441d-8dd3-394d4786ba78"
+      },
+      {
+        "id": "7eae3dcf-bdca-423d-86e4-88c8cdf43bf8",
+        "sourceId": "b14e2a1b-1c7e-48bf-83ad-72dac8eb651a",
+        "type": "edge",
+        "targetId": "64a5092b-ac35-441d-8dd3-394d4786ba78"
+      },
+      {
+        "id": "a5b22cf8-3bdc-48b5-b8a6-bfe9b3804e14",
+        "sourceId": "ffb6a8ef-9516-4fc7-8234-117566a8cc67",
+        "type": "edge",
+        "targetId": "9aa895b3-3f2a-4395-8648-db8c31f628ca"
+      },
+      {
+        "id": "35a79bdc-1b1b-4a54-8d1e-b783e04afa15",
+        "sourceId": "9aa895b3-3f2a-4395-8648-db8c31f628ca",
+        "type": "edge",
+        "targetId": "64a5092b-ac35-441d-8dd3-394d4786ba78"
+      },
+      {
+        "id": "ab5a8d7a-96c9-4fb8-89b9-d674a214a16e",
+        "sourceId": "28db4e0c-528f-46da-b4e6-68357105b0cc",
+        "type": "edge",
+        "targetId": "e1fef8df-81d8-486c-8440-1348501a7fa8"
+      },
+      {
+        "id": "8c9e9b6a-3ce5-4e90-b916-1e80e464dcba",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "01b5a2b5-5f97-4de4-861b-5951d0a9457d",
+        "sourceHandle": "7e4e7dc0-2df9-4177-a56c-081b503d0351"
+      },
+      {
+        "id": "e000e705-7836-485b-9929-39409cd94bc2",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "01b5a2b5-5f97-4de4-861b-5951d0a9457d",
+        "sourceHandle": "9b0fc1fe-d3b9-4dae-8fd9-4acbda489926"
+      },
+      {
+        "id": "a131a2ff-d12e-457c-a7ca-d8f63bd898f5",
+        "sourceId": "01b5a2b5-5f97-4de4-861b-5951d0a9457d",
+        "type": "edge",
+        "targetId": "2dde6293-7cb2-46ef-acc9-529f7b8ab227"
+      },
+      {
+        "id": "c794a445-e078-4a1b-94ea-a185011d60b4",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "ffb6a8ef-9516-4fc7-8234-117566a8cc67",
+        "sourceHandle": "40bcb935-f3a0-4846-987a-b7bb29abfd66"
+      },
+      {
+        "id": "b2dcdbd3-6dbb-420c-9ef6-66a310a38974",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "b14e2a1b-1c7e-48bf-83ad-72dac8eb651a",
+        "sourceHandle": "40bcb935-f3a0-4846-987a-b7bb29abfd66"
+      },
+      {
+        "id": "43459c08-2fcb-47fb-9d8c-2be1d115bde0",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "3601b017-5b9a-49ad-b98d-7d0debe63f09",
+        "sourceHandle": "40bcb935-f3a0-4846-987a-b7bb29abfd66"
+      },
+      {
+        "id": "2c938ef1-dbfb-4688-b579-ef9c8abff82f",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "6320f437-6627-4d84-bed9-5164cb38ed29",
+        "sourceHandle": "40bcb935-f3a0-4846-987a-b7bb29abfd66"
+      },
+      {
+        "id": "f2735777-9fec-47eb-91d5-e3fb12f6b5a6",
+        "sourceId": "6320f437-6627-4d84-bed9-5164cb38ed29",
+        "type": "edge",
+        "targetId": "64a5092b-ac35-441d-8dd3-394d4786ba78"
+      },
+      {
+        "id": "fbe7c773-cb35-46c8-b359-662171cd4228",
+        "sourceId": "e1fef8df-81d8-486c-8440-1348501a7fa8",
+        "type": "edge",
+        "targetId": "01b5a2b5-5f97-4de4-861b-5951d0a9457d",
+        "sourceHandle": "9b1c9c08-44a7-4396-a8a7-fe5a2a35747d"
+      }
+    ]
+  }

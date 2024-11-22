@@ -24,6 +24,7 @@ mod controllers {
     pub mod release_handler;
     pub mod audittrail_handler;
     pub mod configure_handler;
+    pub mod zen_handler;
 }
 mod routes;
 // mod util;
