@@ -17,6 +17,16 @@ pub enum Error {
     InvalidAuthHeaderError,
     #[error("no permission")]
     NoPermissionError,
+    #[error("Release with different release already present")]
+    DuplicateReleaseError,
+    #[error("invalid request body")]
+    InvalidRequestBodyError,
+    #[error("database error")]
+    DatabaseError,
+    #[error("Resource not found")]
+    ResourceNotFound,
+    #[error("Unable to parse token")]
+    ParseTokenError,
 }
 
 #[derive(Serialize, Debug)]
@@ -35,11 +45,17 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
             Error::WrongCredentialsError => (StatusCode::FORBIDDEN, e.to_string()),
             Error::NoPermissionError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::JWTTokenError => (StatusCode::UNAUTHORIZED, e.to_string()),
+            Error::ResourceNotFound => (StatusCode::NOT_FOUND, e.to_string()),
+            Error::DatabaseError => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Error::DuplicateReleaseError => (StatusCode::INTERNAL_SERVER_ERROR,e.to_string()),
+            Error::InvalidRequestBodyError => (StatusCode::BAD_REQUEST, e.to_string()),
+            Error::NoAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),
+            Error::InvalidAuthHeaderError => (StatusCode::UNAUTHORIZED, e.to_string()),
+            Error::ParseTokenError => (StatusCode::UNAUTHORIZED, e.to_string()),
             Error::JWTTokenCreationError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
             ),
-            _ => (StatusCode::BAD_REQUEST, e.to_string()),
         }
     } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
         (
